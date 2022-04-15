@@ -1,0 +1,14 @@
+{
+  "name": "ydb-orm-example",
+  "main": "server.js",
+  "version": "1.0.0",
+  "dependencies": {
+    "argon2": "^0.28.2",
+    "aws-lambda-fastify": "^1.7.1",
+    "fastify": "^3.20.2",
+    "fastify-plugin": "^3.0.0",
+    "jsonwebtoken": "^8.5.1",
+    "nanoid": "^3.1.25",
+    "pino": "^6.13.1"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+.git
+.vscode
+.nyc_output
+.directory
+
+npm-debug.log
+pnpm-debug.log
+
+.gitigonre
+.env
+.env.production

@@ -1,0 +1,21 @@
+version: '3.7'
+
+services:
+  test:
+    environment:
+      - YDB_ENDPOINT=grpcs://database:2135
+      - YDB_DATABASE=/local
+
+      - YDB_CERTS=/ydb_certs
+    volumes:
+      - ydb_certs:/ydb_certs
+    networks:
+      - local
+
+  database:
+    image: cr.yandex/yc/yandex-docker-local-ydb:latest
+    hostname: database
+    volumes:
+      - ydb_certs:/ydb_certs
+    networks:
+      - local

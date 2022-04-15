@@ -1,0 +1,27 @@
+{
+  "name": "ydb-orm",
+  "description": "ydb-orm",
+  "author": "Georgy Malkov",
+  "main": "index.js",
+  "version": "1.0.0",
+  "scripts": {
+    "test-debug": "tap -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage service/**/*.spec.js",
+    "test": "tap --bail --jobs=1 --reporter=list --no-coverage service/**/*.spec.js",
+    "test-docker": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test",
+    "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local"
+  },
+  "dependencies": {
+    "fastify-plugin": "^3.0.0",
+    "pino": "^6.13.1",
+    "ydb-sdk": "^2.5.0"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.24.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0",
+    "tap": "^15.0.9"
+  }
+}
