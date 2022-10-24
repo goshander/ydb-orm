@@ -6,6 +6,10 @@
     "email": "i@malkovgv.ru",
     "url": "https://github.com/goshander/ydb-orm"
   },
+  "homepage": "https://github.com/goshander/ydb-orm",
+  "repository": {
+    "url": "https://github.com/goshander/ydb-orm"
+  },
   "license": "see in LICENSE",
   "main": "main.js",
   "version": "1.2.2",
