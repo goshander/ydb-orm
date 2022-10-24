@@ -1,7 +1,8 @@
+/* eslint-disable import/no-unresolved */
 const { nanoid } = require('nanoid')
 const argon2 = require('argon2')
 
-const { YdbModel, YdbType } = require('../../..')
+const { YdbModel, YdbType } = require('ydb-orm')
 
 class User extends YdbModel {
   static schema = {

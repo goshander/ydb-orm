@@ -1,4 +1,4 @@
-FROM node:14.17.6-buster-slim
+FROM node:16.18.0-buster-slim
 
 RUN mkdir -p /home/node/app && chown -R node:node /home/node/app
 

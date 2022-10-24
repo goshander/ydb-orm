@@ -6,13 +6,8 @@
 .directory
 
 node_modules
-dist
 .nyc_output
 .DS_Store
 .npmrc
 
 .env
-.key
-
-ydb-sa.json
-ydb_certs

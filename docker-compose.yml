@@ -2,7 +2,17 @@ version: '3.7'
 
 services:
   test:
+    command: npm run test
+    build:
+      context: ./api
+      dockerfile: ./docker/test.dockerfile
+    depends_on:
+      - database
+    restart: "no"
+    image: ydb-orm:test
     environment:
+      - NODE_ENV=test
+
       - YDB_ENDPOINT=grpcs://database:2135
       - YDB_DATABASE=/local
 
@@ -15,7 +25,17 @@ services:
   database:
     image: cr.yandex/yc/yandex-docker-local-ydb:latest
     hostname: database
+    environment:
+      - YDB_USE_IN_MEMORY_PDISKS=true
+    restart: "no"
     volumes:
       - ydb_certs:/ydb_certs
     networks:
       - local
+
+networks:
+  local:
+    driver: bridge
+
+volumes:
+  ydb_certs:

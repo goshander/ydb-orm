@@ -5,8 +5,6 @@ node_modules
 .directory
 
 npm-debug.log
-pnpm-debug.log
 
 .gitigonre
 .env
-.env.production

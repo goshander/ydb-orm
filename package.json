@@ -1,27 +1,31 @@
 {
   "name": "ydb-orm",
-  "description": "ydb-orm",
-  "author": "Georgy Malkov",
-  "main": "index.js",
-  "version": "1.0.0",
+  "description": "YDB simple ORM implementation",
+  "author": {
+    "name": "Georgy Malkov",
+    "email": "i@malkovgv.ru",
+    "url": "https://github.com/goshander/ydb-orm"
+  },
+  "license": "see in LICENSE",
+  "main": "main.js",
+  "version": "1.2.1",
   "scripts": {
-    "test-debug": "tap -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage service/**/*.spec.js",
-    "test": "tap --bail --jobs=1 --reporter=list --no-coverage service/**/*.spec.js",
+    "test-debug": "tap -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.js",
+    "test": "tap --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.js",
     "test-docker": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test",
     "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local"
   },
   "dependencies": {
-    "fastify-plugin": "^3.0.0",
-    "pino": "^6.13.1",
-    "ydb-sdk": "^2.5.0"
+    "fastify-plugin": "^4.2.1",
+    "pino": "^8.6.0",
+    "ydb-sdk": "^3.4.4"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.32.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-plugin-import": "^2.24.2",
+    "eslint": "^8.24.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^5.1.0",
-    "tap": "^15.0.9"
+    "eslint-plugin-promise": "^6.0.1",
+    "tap": "^16.3.0"
   }
 }
