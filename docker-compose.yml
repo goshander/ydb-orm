@@ -4,7 +4,7 @@ services:
   test:
     command: npm run test
     build:
-      context: ./api
+      context: ./
       dockerfile: ./docker/test.dockerfile
     depends_on:
       - database
@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=test
 
-      - YDB_ENDPOINT=grpcs://database:2135
+      - YDB_ENDPOINT=grpc://database:2136
       - YDB_DATABASE=/local
 
       - YDB_CERTS=/ydb_certs

@@ -11,13 +11,15 @@ async function timeoutReady(time) {
   })
 }
 
-async function prepare(t) {
-  const db = ydb.Ydb.init(endpoint, database, {
-    token, timeout: 2000, meta,
+async function prepare(t, option) {
+  const db = ydb.Ydb.init(process.env.YDB_ENDPOINT, process.env.YDB_DATABASE, {
+    timeout: 1000,
   })
 
-  // load model
-  // db.load(m);
+  // load models
+  if (option.models) {
+    option.models.forEach((m) => db.load(m))
+  }
 
   t.teardown(async () => {
     await db.close()
@@ -26,19 +28,19 @@ async function prepare(t) {
   await db.connect()
 
   // ready storage hack before sync
-  // let errorSync = NOT_READY
-  // while (errorSync === NOT_READY) {
-  //   try {
-  //     await db.sync()
-  //     errorSync = null
-  //   } catch (err) {
-  //     if (err && err.issues && err.issues[0] && err.issues[0].message === NOT_READY) {
-  //       await timeoutReady(500)
-  //     } else {
-  //       throw err
-  //     }
-  //   }
-  // }
+  let errorSync = NOT_READY
+  while (errorSync === NOT_READY) {
+    try {
+      await db.sync()
+      errorSync = null
+    } catch (err) {
+      if (err && err.issues && err.issues[0] && err.issues[0].message === NOT_READY) {
+        await timeoutReady(500)
+      } else {
+        throw err
+      }
+    }
+  }
   // ready storage hack before sync
 
   return {
@@ -58,7 +60,7 @@ module.exports = {
       [name, option, callback] = args
 
       return test(name, option, async (t) => {
-        const ctx = await prepare(t)
+        const ctx = await prepare(t, option)
 
         return callback(t, ctx)
       })

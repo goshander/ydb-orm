@@ -1,9 +1,20 @@
 const { test } = require('../test')
+const UserModel = require('./model/user')
+const GameModel = require('./model/game')
 
-test('game', async (t, { db, logger }) => {
+const options = {
+  models: [
+    UserModel,
+    GameModel,
+  ],
+}
+
+test('game', options, async (t, { db, logger }) => {
+  db.load(UserModel)
+  db.load(GameModel)
+
   const User = db.model.User
   const Game = db.model.Game
-  const Turn = db.model.Turn
 
   const user = new User({ name: 'test' })
   t.teardown(async () => {
@@ -27,19 +38,8 @@ test('game', async (t, { db, logger }) => {
 
   game.user.push(user2.id)
   await game.save()
-  await game.start()
 
   const gameCheck = await Game.findOne({ id: game.id })
 
   t.same(gameCheck.toJson(), game.toJson())
 })
-
-// test('request', async (t, { app, db, logger }) => {
-
-//   const response = await app.inject({
-//     method: 'POST',
-//     url: '/request/create',
-//   })
-
-//   t.equal(response.statusCode, 200)
-// })
