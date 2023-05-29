@@ -12,7 +12,7 @@
   },
   "license": "see in LICENSE",
   "main": "main.js",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "scripts": {
     "test-debug": "tap -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.js",
     "test": "tap --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.js",
@@ -20,9 +20,10 @@
     "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local"
   },
   "dependencies": {
-    "fastify-plugin": "^4.2.1",
+    "@yandex-cloud/nodejs-sdk": "^2.4.0",
+    "fastify-plugin": "^4.2.0",
     "pino": "^8.6.0",
-    "ydb-sdk": "^4.1.0"
+    "ydb-sdk": "^4.6.0"
   },
   "devDependencies": {
     "eslint": "^8.24.0",
