@@ -39,7 +39,7 @@ test('game', options, async (t, { db, logger }) => {
   game.user.push(user2.id)
   await game.save()
 
-  const gameCheck = await Game.findOne({ id: game.id })
+  const gameCheck = await Game.findOne({ where: { id: game.id } })
 
   t.same(gameCheck.toJson(), game.toJson())
 })
