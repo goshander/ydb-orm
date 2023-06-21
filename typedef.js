@@ -1,5 +1,5 @@
 /**
- * @typedef {typeof import('~/plugin/ydb/db').db} Db
+ * @typedef {typeof import('./lib/db').db} Db
  * @typedef {import('pino').Logger} Pino
  * @typedef {Tap.Test} TapTest
  */
@@ -7,7 +7,7 @@
 /**
  * @typedef TestContext
  * @property {Pino} logger
- * @property {Db & DbExtended} db
+ * @property {Db} db
  */
 
 /**

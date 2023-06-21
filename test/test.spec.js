@@ -9,7 +9,7 @@ const options = {
   ],
 }
 
-test('game', options, async (t, { db, logger }) => {
+test('game', options, async (t, { logger, db }) => {
   const User = db.model.User
   const Game = db.model.Game
 

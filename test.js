@@ -53,6 +53,7 @@ module.exports = {
   /** @type {Test} */
   test: (...args) => {
     let name
+    /** @type {TestCallback} */
     let callback
     let option
 

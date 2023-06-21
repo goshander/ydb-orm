@@ -26,6 +26,7 @@
     "ydb-sdk": "^4.6.0"
   },
   "devDependencies": {
+    "@types/tap": "^15.0.8",
     "eslint": "^8.24.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
