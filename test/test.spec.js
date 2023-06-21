@@ -42,4 +42,19 @@ test('game', options, async (t, { db, logger }) => {
   const gameCheck = await Game.findOne({ where: { id: game.id } })
 
   t.same(gameCheck.toJson(), game.toJson())
+
+  // increment
+  t.equal(game.turn, 0)
+
+  await game.increment('turn')
+  t.equal(game.turn, 1)
+
+  let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+  t.equal(gameTurnCheck.turn, 1)
+
+  await game.increment('turn', { by: 5 })
+  t.equal(game.turn, 6)
+  gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+
+  t.equal(gameTurnCheck.turn, 6)
 })

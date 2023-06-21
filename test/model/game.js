@@ -11,11 +11,12 @@ class Game extends YdbModel {
     mode: YdbType.ascii, // hard, easy
     score: YdbType.json, // {userId: 0, userId: 0}
     status: YdbType.ascii, // init, start, end
+    turn: YdbType.int, // turn counter
     createdAt: YdbType.date,
   }
 
   constructor({
-    meta, user, timeout, mode, score, status, id = null, createdAt,
+    meta, user, timeout, mode, score, status, turn, id = null, createdAt,
   }) {
     super()
     this.id = id || nanoid(32)
@@ -25,6 +26,7 @@ class Game extends YdbModel {
     this.mode = mode || 'easy'
     this.score = score || {}
     this.status = status || 'init'
+    this.turn = turn || 0
     this.createdAt = createdAt || new Date()
   }
 }
