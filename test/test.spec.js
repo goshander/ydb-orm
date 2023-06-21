@@ -10,9 +10,6 @@ const options = {
 }
 
 test('game', options, async (t, { db, logger }) => {
-  db.load(UserModel)
-  db.load(GameModel)
-
   const User = db.model.User
   const Game = db.model.Game
 
