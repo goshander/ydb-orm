@@ -1,26 +1,35 @@
-const fs = require('fs')
-const path = require('path')
-const pino = require('pino')
+import fs from 'fs'
+import path from 'path'
 
-const {
+import pino, { BaseLogger } from 'pino'
+import {
+  AnonymousAuthService,
   Driver,
   IamAuthService,
-  TokenAuthService,
-  AnonymousAuthService,
-  getSACredentialsFromJson,
   MetadataAuthService,
-} = require('ydb-sdk')
+  Session,
+  TokenAuthService,
+  getSACredentialsFromJson,
+} from 'ydb-sdk'
 
-const sync = require('./sync')
+import { sync } from './sync'
+import { YdbBaseModelType, YdbBaseType, YdbOptionsType } from './type'
 
-let db = null
+let db: Ydb
 
-class Ydb {
-  timeout = 10000
+export class Ydb implements YdbBaseType {
+  timeout: number = 10000
+  driver: Driver
+  logger: BaseLogger
+  model: Record<string, YdbBaseModelType>
 
-  constructor(endpoint, database, {
+  static get db() {
+    return db
+  }
+
+  constructor(endpoint: string, database: string, {
     token, credential, logger, timeout, cert, meta,
-  }) {
+  }: YdbOptionsType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()
 
@@ -35,9 +44,9 @@ class Ydb {
     } else {
       authService = new AnonymousAuthService()
     }
+    /* @ts-ignore */
     if (cert) authService.sslCredentials = cert
 
-    /** @type {Driver} */
     this.driver = new Driver({
       endpoint,
       database,
@@ -45,11 +54,10 @@ class Ydb {
       logger: this.logger,
     })
 
-    /** @type {Record<string,import('./model')>} */
     this.model = {}
   }
 
-  async session(action) {
+  async session(action: (session: Session)=> Promise<unknown>) {
     return this.driver.tableClient.withSession(action)
   }
 
@@ -63,17 +71,19 @@ class Ydb {
     }
   }
 
-  sync = sync
+  sync() {
+    return sync(this)
+  }
 
-  load(model) {
-    model.ctx = this
-    this.model[model.name] = model
+  load(model: YdbBaseModelType) {
+    model.setCtx(this)
+    this.model[model.className] = model
   }
 }
 
-function init(endpoint, database, {
+export const ydbInit = (endpoint: string, database: string, {
   credential, token, logger, timeout, meta,
-} = {}) {
+}: YdbOptionsType = {}) => {
   let cert
   if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
     credential = getSACredentialsFromJson(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))
@@ -93,11 +103,4 @@ function init(endpoint, database, {
   return db
 }
 
-module.exports = {
-  init,
-
-  /** @return {ReturnType<init>} */
-  get db() {
-    return db
-  },
-}
+export type YdbType = typeof Ydb

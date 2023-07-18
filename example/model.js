@@ -1,21 +1,22 @@
+// @ts-nocheck
 /* eslint-disable import/no-unresolved */
-const { nanoid } = require('nanoid')
 const argon2 = require('argon2')
-
-const { YdbModel, YdbType } = require('ydb-orm')
+const { nanoid } = require('nanoid')
+const { YdbModel, YdbDataType } = require('ydb-orm')
 
 class User extends YdbModel {
   static schema = {
-    id: YdbType.ascii,
-    login: YdbType.ascii,
-    password: YdbType.ascii,
-    createdAt: YdbType.date,
+    id: YdbDataType.ascii,
+    login: YdbDataType.ascii,
+    password: YdbDataType.ascii,
+    createdAt: YdbDataType.date,
   }
 
-  constructor({
-    login, createdAt, id = null, password,
-  }) {
-    super()
+  constructor(fields) {
+    super(fields)
+    const {
+      login, createdAt, id = null, password,
+    } = fields
     this.id = id || nanoid()
     this.login = login
     this.password = password

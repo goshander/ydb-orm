@@ -26,6 +26,8 @@ const db = Ydb.init(endpoint, database, {
   ],
   timeout: 2000, 
 })
+
+Ydb.db // singleton
 ```
 
 - as `fastify` web-server plugin:
