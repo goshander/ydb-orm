@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import type { BaseLogger } from 'pino'
 import { Ydb } from 'ydb-sdk'
 import type {
@@ -64,7 +65,7 @@ export class YdbBaseModel implements Record<string, unknown> {
   [field: string]: unknown
 
   constructor(fields: Record<string, PrimitiveType>) {
-    throw new Error('ydb: constructor not implemented', { cause: { fields } })
+    throw new Error('ydb: constructor not implemented')
   }
 
   static primaryKey: string
@@ -83,34 +84,34 @@ export class YdbBaseModel implements Record<string, unknown> {
   get ctx(): YdbBaseType { throw new Error('ydb: getter `ctx` not implemented') }
   static ctx: YdbBaseType
   static setCtx(ctx: YdbBaseType): void {
-    throw new Error('ydb: static method `setCtx` not implemented', { cause: { ctx } })
+    throw new Error('ydb: static method `setCtx` not implemented')
   }
 
   static copy(from: string, to: string): Promise<unknown> {
-    throw new Error('ydb: static method `copy` not implemented', { cause: { from, to } })
+    throw new Error('ydb: static method `copy` not implemented')
   }
   static count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number> {
-    throw new Error('ydb: static method `count` not implemented', { cause: { options } })
+    throw new Error('ydb: static method `count` not implemented')
   }
   static find(options: {
     where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
   }): Promise<Array<YdbBaseModel>> {
-    throw new Error('ydb: static method `find` not implemented', { cause: { options } })
+    throw new Error('ydb: static method `find` not implemented')
   }
   static findByPk(pk: string): Promise<YdbBaseModel | null> {
-    throw new Error('ydb: static method `findByPk` not implemented', { cause: { pk } })
+    throw new Error('ydb: static method `findByPk` not implemented')
   }
   static findOne(options: { where?: WhereType, order?: string }): Promise<YdbBaseModel | null> {
-    throw new Error('ydb: static method `findOne` not implemented', { cause: { options } })
+    throw new Error('ydb: static method `findOne` not implemented')
   }
   static update(data: Record<string, PrimitiveType>, options: { where: WhereType }): Promise<void> {
-    throw new Error('ydb: static method `update` not implemented', { cause: { data, options } })
+    throw new Error('ydb: static method `update` not implemented')
   }
 
-  save(): Promise<YdbBaseModel> { throw new Error('ydb: method `save` not implemented', { cause: {} }) }
-  delete(): Promise<void> { throw new Error('ydb: method `delete` not implemented', { cause: {} }) }
+  save(): Promise<YdbBaseModel> { throw new Error('ydb: method `save` not implemented') }
+  delete(): Promise<void> { throw new Error('ydb: method `delete` not implemented') }
   increment(field: string, options: { by?: number }): Promise<void> {
-    throw new Error('ydb: method `increment` not implemented', { cause: { field, options } })
+    throw new Error('ydb: method `increment` not implemented')
   }
 
   toJson(): Record<string, PrimitiveType> { throw new Error('ydb: method `toJson` not implemented') }
