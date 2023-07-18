@@ -6,7 +6,7 @@ const app = fastify()
 // load db model
 const User = require('./model')
 
-app.register(ydb.fastify, {
+app.register(ydb.YdbFastify, {
   endpoint: process.env.YDB_ENDPOINT,
   database: process.env.YDB_DATABASE,
   meta: process.env.NODE_ENV === 'production',
@@ -17,4 +17,4 @@ app.register(ydb.fastify, {
 })
 
 // eslint-disable-next-line semi-style, no-return-await
-;(async () => await app.listen())()
+;(async () => app.listen())()
