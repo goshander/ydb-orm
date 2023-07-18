@@ -27,6 +27,10 @@ services:
     hostname: database
     environment:
       - YDB_USE_IN_MEMORY_PDISKS=true
+      - YDB_DEFAULT_LOG_LEVEL=WARN
+      - GRPC_TLS_PORT=2135
+      - GRPC_PORT=2136
+      - MON_PORT=8765
     restart: "no"
     volumes:
       - ydb_certs:/ydb_certs

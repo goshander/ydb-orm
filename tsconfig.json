@@ -3,9 +3,7 @@
     "lib": [
       "esnext"
     ],
-    "module": "ESNext",
     "moduleResolution": "node",
-    "allowImportingTsExtensions": true,
     "allowJs": true,
     "alwaysStrict": true,
     "checkJs": true,
@@ -33,7 +31,7 @@
   },
   "include": [
     ".eslintrc.js",
-    "main.ts",
+    "index.ts",
     "test.ts",
     "lib/**/*",
     "example/**/*",

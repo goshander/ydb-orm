@@ -1,10 +1,7 @@
-import { escape } from './escape.ts'
-import { PrimitiveType } from './type.ts'
+import { escape } from './escape'
+import { LikeType, PrimitiveType, WhereType } from './type'
 
-type LikeType = { like: PrimitiveType }
-type WhereType = Record<string, PrimitiveType | LikeType>
-
-export const where = (seed:WhereType | { or: WhereType }) => {
+export const where = (seed: WhereType | { or: WhereType }) => {
   let unit = ' AND '
 
   const data: WhereType = seed.or ? seed.or as WhereType : seed as WhereType

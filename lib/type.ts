@@ -1,6 +1,8 @@
+import type { BaseLogger } from 'pino'
 import { Ydb } from 'ydb-sdk'
-
-export type { YdbError } from 'ydb-sdk'
+import type {
+  Driver, ISslCredentials, Session, YdbError,
+} from 'ydb-sdk'
 
 export type BaseType = boolean | number | string | null
 export type FieldType = BaseType | Date
@@ -12,7 +14,10 @@ export type JsonType =
 
 export type PrimitiveType = FieldType | ArrayType | JsonType
 
-export const YdbType = {
+export type LikeType = { like: PrimitiveType }
+export type WhereType = Record<string, PrimitiveType | LikeType>
+
+export const YdbDataType = {
   date: Ydb.Type.PrimitiveTypeId.TIMESTAMP,
   string: Ydb.Type.PrimitiveTypeId.UTF8,
   ascii: Ydb.Type.PrimitiveTypeId.STRING,
@@ -27,5 +32,99 @@ export const YdbType = {
   bool: Ydb.Type.PrimitiveTypeId.BOOL,
   json: Ydb.Type.PrimitiveTypeId.JSON,
 } as const
+export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
+export type YdbSchemaType = Record<string, YdbDataTypeId>
+export const SCHEMA_REJECTED_FIELD = ['ctx', 'base', 'schema', 'primaryKey', 'className', 'tableName'] as const
 
-export type YdbPrimitiveTypeId = typeof YdbType[keyof typeof YdbType]
+export type YdbOptionsType = {
+  token?: string
+  credential?: {
+    serviceAccountId: string;
+    accessKeyId: string;
+    privateKey: Buffer;
+    iamEndpoint: string;
+  }
+  logger?: BaseLogger
+  timeout?: number
+  cert?: ISslCredentials
+  meta?: boolean
+}
+export type YdbBaseType = {
+  timeout: number
+  driver: Driver
+  logger: BaseLogger
+  model: Record<string, YdbBaseModelType>
+
+  session(action: (session: Session)=> Promise<unknown>): Promise<unknown>
+  close(): Promise<void>
+  load(model: YdbBaseModelType): void
+}
+
+export class YdbBaseModel implements Record<string, unknown> {
+  [field: string]: unknown
+
+  constructor(fields: Record<string, PrimitiveType>) {
+    throw new Error('ydb: constructor not implemented', { cause: { fields } })
+  }
+
+  static primaryKey: string
+  get primaryKey(): string { throw new Error('ydb: getter `primaryKey` not implemented') }
+
+  static schema: YdbSchemaType
+  get schema(): YdbSchemaType { throw new Error('ydb: getter `schema` not implemented') }
+
+  static className: string
+  get className(): string { throw new Error('ydb: getter `className` not implemented') }
+  static tableName: string
+  get tableName(): string { throw new Error('ydb: getter `tableName` not implemented') }
+
+  get base(): Object { throw new Error('ydb: getter `base` not implemented') }
+
+  get ctx(): YdbBaseType { throw new Error('ydb: getter `ctx` not implemented') }
+  static ctx: YdbBaseType
+  static setCtx(ctx: YdbBaseType): void {
+    throw new Error('ydb: static method `setCtx` not implemented', { cause: { ctx } })
+  }
+
+  static copy(from: string, to: string): Promise<unknown> {
+    throw new Error('ydb: static method `copy` not implemented', { cause: { from, to } })
+  }
+  static count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number> {
+    throw new Error('ydb: static method `count` not implemented', { cause: { options } })
+  }
+  static find(options: {
+    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
+  }): Promise<Array<YdbBaseModel>> {
+    throw new Error('ydb: static method `find` not implemented', { cause: { options } })
+  }
+  static findByPk(pk: string): Promise<YdbBaseModel | null> {
+    throw new Error('ydb: static method `findByPk` not implemented', { cause: { pk } })
+  }
+  static findOne(options: { where?: WhereType, order?: string }): Promise<YdbBaseModel | null> {
+    throw new Error('ydb: static method `findOne` not implemented', { cause: { options } })
+  }
+  static update(data: Record<string, PrimitiveType>, options: { where: WhereType }): Promise<void> {
+    throw new Error('ydb: static method `update` not implemented', { cause: { data, options } })
+  }
+
+  save(): Promise<YdbBaseModel> { throw new Error('ydb: method `save` not implemented', { cause: {} }) }
+  delete(): Promise<void> { throw new Error('ydb: method `delete` not implemented', { cause: {} }) }
+  increment(field: string, options: { by?: number }): Promise<void> {
+    throw new Error('ydb: method `increment` not implemented', { cause: { field, options } })
+  }
+
+  toJson(): Record<string, PrimitiveType> { throw new Error('ydb: method `toJson` not implemented') }
+}
+export type YdbBaseModelType = typeof YdbBaseModel
+
+export type YdbFastifyOptionsType = {
+  endpoint: string
+  database: string
+  token?: string
+  meta?: boolean
+  model?: Array<YdbBaseModelType>
+  timeout?: number
+  sync?: boolean
+}
+
+export type YdbErrorType = YdbError

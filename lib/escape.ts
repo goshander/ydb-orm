@@ -1,4 +1,4 @@
-import { PrimitiveType } from './type.ts'
+import { PrimitiveType } from './type'
 
 const valueEscape = (str: string) => {
   // eslint-disable-next-line no-control-regex

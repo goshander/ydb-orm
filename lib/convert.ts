@@ -1,5 +1,5 @@
 import {
-  YdbPrimitiveTypeId, YdbType, FieldType, JsonType,
+  FieldType, JsonType, YdbDataType, YdbDataTypeId,
 } from './type'
 
 type RawData = {
@@ -15,27 +15,27 @@ type RawData = {
   textValue?: string;
 }
 
-type Converter = Record<YdbPrimitiveTypeId, (r: RawData)=>FieldType | JsonType>
+type Converter = Record<YdbDataTypeId, (r: RawData)=> FieldType | JsonType>
 
 const CONVERTER: Converter = {
-  [YdbType.date]: (r) => new Date(r.uint64Value!.toNumber() / 1000),
-  [YdbType.string]: (r) => r.textValue! as string,
-  [YdbType.ascii]: (r) => r.bytesValue!.toString(),
-  [YdbType.uint64]: (r) => r.uint64Value!.toNumber(),
-  [YdbType.uint32]: (r) => r.uint32Value! as number,
-  [YdbType.uint8]: (r) => r.uint8Value! as number,
-  [YdbType.int64]: (r) => r.int64Value!.toNumber(),
-  [YdbType.int32]: (r) => r.int32Value! as number,
-  [YdbType.int8]: (r) => r.int8Value! as number,
-  [YdbType.bool]: (r) => r.boolValue! as boolean,
-  [YdbType.json]: (r) => JSON.parse(r.textValue!) as JsonType,
+  [YdbDataType.date]: (r) => new Date(r.uint64Value!.toNumber() / 1000),
+  [YdbDataType.string]: (r) => r.textValue! as string,
+  [YdbDataType.ascii]: (r) => r.bytesValue!.toString(),
+  [YdbDataType.uint64]: (r) => r.uint64Value!.toNumber(),
+  [YdbDataType.uint32]: (r) => r.uint32Value! as number,
+  [YdbDataType.uint8]: (r) => r.uint8Value! as number,
+  [YdbDataType.int64]: (r) => r.int64Value!.toNumber(),
+  [YdbDataType.int32]: (r) => r.int32Value! as number,
+  [YdbDataType.int8]: (r) => r.int8Value! as number,
+  [YdbDataType.bool]: (r) => r.boolValue! as boolean,
+  [YdbDataType.json]: (r) => JSON.parse(r.textValue!) as JsonType,
 } as const
 
 type RawFieldType = {
-  typeId?: YdbPrimitiveTypeId
+  typeId?: YdbDataTypeId
   optionalType?: {
-    item?:{
-      typeId?: YdbPrimitiveTypeId
+    item?: {
+      typeId?: YdbDataTypeId
     }
   }
 }

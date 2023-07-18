@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 
-import { YdbModel, YdbType } from '../..'
+import { YdbDataType, YdbModel } from '../..'
 
 type Fields = {
   id: string
@@ -14,16 +14,15 @@ export class User extends YdbModel implements Fields {
   createdAt: Fields['createdAt']
 
   static schema = {
-    id: YdbType.ascii,
-    name: YdbType.ascii,
-    createdAt: YdbType.date,
+    id: YdbDataType.ascii,
+    name: YdbDataType.ascii,
+    createdAt: YdbDataType.date,
   }
 
-  constructor({
-    name, id, createdAt,
-  }: Partial<Fields>) {
-    super()
+  constructor(fields: Partial<Fields>) {
+    super(fields)
 
+    const { name, id, createdAt } = fields
     this.id = id || nanoid()
     this.name = name || ''
     this.createdAt = createdAt || new Date()

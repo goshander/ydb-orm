@@ -1,8 +1,9 @@
 import tap from 'tap'
-import { Ydb, YdbModel, YdbError } from '.'
+
+import { YdbErrorType, YdbModelType, ydbInit } from '.'
 
 export type TestOptions = {
-  models: Array<typeof YdbModel>
+  models: Array<YdbModelType>
 }
 
 export type TestCtx = {
@@ -31,14 +32,14 @@ async function timeoutAsync(time: number) {
   })
 }
 
-async function prepare(t: Tap.Test, option?: TestOptions) {
-  const db = Ydb.init(process.env.YDB_ENDPOINT, process.env.YDB_DATABASE, {
+async function prepare(t: Tap.Test, options?: TestOptions) {
+  const db = ydbInit(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
     timeout: 1000,
   })
 
   // load models
-  if (option?.models) {
-    option.models.forEach((m) => db.load(m))
+  if (options?.models) {
+    options.models.forEach((m) => db.load(m))
   }
 
   t.teardown(async () => {
@@ -54,7 +55,7 @@ async function prepare(t: Tap.Test, option?: TestOptions) {
       await db.sync()
       dbSyncReady = true
     } catch (err) {
-      if ((err as YdbError)?.issues?.[0]?.message === NOT_READY) {
+      if ((err as YdbErrorType)?.issues?.[0]?.message === NOT_READY) {
         await timeoutAsync(500)
       } else {
         throw err
@@ -72,13 +73,13 @@ async function prepare(t: Tap.Test, option?: TestOptions) {
 export const test = (...args: TestArgs) => {
   let name
   let callback: TestCallback
-  let option: TestOptions
+  let options: TestOptions
 
   if (args.length === 3) {
-    [name, option, callback] = args
+    [name, options, callback] = args
 
-    return tap.test(name, option, async (t) => {
-      const ctx = await prepare(t, option)
+    return tap.test(name, options, async (t) => {
+      const ctx = await prepare(t, options)
 
       return callback(t, ctx)
     })

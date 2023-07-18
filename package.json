@@ -11,14 +11,15 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "main": "main.js",
   "version": "2.0.0",
   "scripts": {
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
     "test": "tap --ts --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
+    "test-js": "tap --bail --jobs=1 --reporter=list --no-coverage dist/**/*.spec.js",
     "test-docker": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test",
     "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local",
-    "build": "tsup main.ts --format esm,cjs --target node18 --clean"
+    "build": "tsup index.ts --format esm,cjs --dts --target node18 --clean",
+    "build-test": "tsup test/test.spec.ts --format cjs --target node18 --clean"
   },
   "dependencies": {
     "@yandex-cloud/nodejs-sdk": "^2.4.7",
@@ -39,9 +40,10 @@
     "eslint-plugin-import": "2.27.5",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
-    "nanoid": "^4.0.2",
+    "nanoid": "^3.3.6",
     "tap": "^16.3.7",
     "ts-node": "^10.9.1",
+    "tslib": "^2.6.0",
     "tsup": "^7.1.0",
     "typescript": "^5.1.6"
   }

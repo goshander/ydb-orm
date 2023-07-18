@@ -1,11 +1,18 @@
-import {
-  FastifyInstance,
-  FastifyPluginOptions,
-} from 'fastify'
-
 import { fastifyPlugin } from 'fastify-plugin'
+import type { BaseLogger } from 'pino'
 
-const { init } = require('./db')
+import { ydbInit } from './db'
+import type { YdbBaseType, YdbErrorType, YdbFastifyOptionsType } from './type'
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    logger?: BaseLogger
+    db?: YdbBaseType
+  }
+}
+
+// eslint-disable-next-line import/first, import/order
+import type { FastifyInstance } from 'fastify'
 
 const NOT_READY = 'database doesn\'t have storage pools at all to create tablet channels to storage pool binding by profile id'
 
@@ -19,8 +26,8 @@ async function timeoutAsync(time: number) {
 
 export const YdbFastify = fastifyPlugin(async (fastify: FastifyInstance, {
   endpoint, database, token, meta, model = [], timeout, sync,
-}: FastifyPluginOptions): Promise<void> => {
-  const db = init(endpoint, database, {
+}: YdbFastifyOptionsType): Promise<void> => {
+  const db = ydbInit(endpoint, database, {
     token, logger: fastify.logger, timeout, meta,
   })
 
@@ -36,7 +43,7 @@ export const YdbFastify = fastifyPlugin(async (fastify: FastifyInstance, {
       await db.sync()
       dbSyncReady = true
     } catch (err) {
-      if (err && err.issues && err.issues[0] && err.issues[0].message === NOT_READY) {
+      if ((err as YdbErrorType)?.issues?.[0]?.message === NOT_READY) {
         await timeoutAsync(500)
       } else {
         throw err

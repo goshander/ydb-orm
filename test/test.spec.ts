@@ -1,6 +1,7 @@
-import { test, TestOptions } from '../test'
-import { User as UserModel } from './model/user'
+import { TestOptions, test } from '../test'
+
 import { Game as GameModel } from './model/game'
+import { User as UserModel } from './model/user'
 
 const options: TestOptions = {
   models: [

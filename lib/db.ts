@@ -1,34 +1,36 @@
 import fs from 'fs'
 import path from 'path'
+
 import pino, { BaseLogger } from 'pino'
 import {
+  AnonymousAuthService,
   Driver,
   IamAuthService,
-  TokenAuthService,
-  AnonymousAuthService,
-  getSACredentialsFromJson,
   MetadataAuthService,
   Session,
+  TokenAuthService,
+  getSACredentialsFromJson,
 } from 'ydb-sdk'
-import { YdbModel } from './model'
+
+import { YdbBaseModelType, YdbBaseType, YdbOptionsType } from './type'
 
 const sync = require('./sync')
 
 let db: Ydb
 
-export class Ydb {
-  timeout = 10000
+export class Ydb implements YdbBaseType {
+  timeout: number = 10000
   driver: Driver
   logger: BaseLogger
-  model: Record<string, YdbModel>
+  model: Record<string, YdbBaseModelType>
 
   static get db() {
     return db
   }
 
-  constructor(endpoint, database, {
+  constructor(endpoint: string, database: string, {
     token, credential, logger, timeout, cert, meta,
-  }) {
+  }: YdbOptionsType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()
 
@@ -56,7 +58,7 @@ export class Ydb {
     this.model = {}
   }
 
-  async session(action: (session: Session)=>Promise<unknown>) {
+  async session(action: (session: Session)=> Promise<unknown>) {
     return this.driver.tableClient.withSession(action)
   }
 
@@ -72,15 +74,15 @@ export class Ydb {
 
   sync = sync
 
-  load(model:YdbModel) {
-    model.ctx = this
-    this.model[model.name] = model
+  load(model: YdbBaseModelType) {
+    model.setCtx(this)
+    this.model[model.className] = model
   }
 }
 
-export const init = (endpoint, database, {
+export const ydbInit = (endpoint: string, database: string, {
   credential, token, logger, timeout, meta,
-} = {}) => {
+}: YdbOptionsType = {}) => {
   let cert
   if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
     credential = getSACredentialsFromJson(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))
@@ -99,3 +101,5 @@ export const init = (endpoint, database, {
 
   return db
 }
+
+export type YdbType = typeof Ydb
