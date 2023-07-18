@@ -2,8 +2,6 @@
 
 ---
 
-***[In Development]***
-
 Minimal ORM lib for YDB database for fast development services with serverless ecosystem
 
 **Usage example**
@@ -33,9 +31,9 @@ Ydb.db // singleton
 - as `fastify` web-server plugin:
 
 ```javascript
-const ydb = require('ydb-orm')
+const { YdbFastify } = require('ydb-orm')
 
-app.register(ydb.fastify, {
+app.register(YdbFastify, {
   endpoint: process.env.YDB_ENDPOINT,
   database: process.env.YDB_DATABASE,
 
@@ -60,6 +58,4 @@ app.register(ydb.fastify, {
 
 ---
 
-***[В разработке]***
-
-Минимальная реализация ORM для YDB базы данных для быстрой разработки сервисов в безсерверной экосистеме на основе лямбда функций
+Минимальная реализация ORM для YDB базы данных для быстрой разработки сервисов в бессерверной экосистеме на основе лямбда функций
