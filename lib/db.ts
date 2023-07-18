@@ -71,7 +71,9 @@ export class Ydb implements YdbBaseType {
     }
   }
 
-  sync = sync
+  sync() {
+    return sync(this)
+  }
 
   load(model: YdbBaseModelType) {
     model.setCtx(this)

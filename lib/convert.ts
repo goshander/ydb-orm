@@ -1,21 +1,8 @@
 import {
-  FieldType, JsonType, YdbDataType, YdbDataTypeId,
+  FieldType, JsonType, RawDataType, RawFieldType, YdbDataType, YdbDataTypeId,
 } from './type'
 
-type RawData = {
-  uint8Value?: number;
-  uint32Value?: number;
-  uint64Value?: Long;
-  int8Value?: number;
-  int32Value?: number;
-  int64Value?: Long;
-  boolValue?: boolean;
-  nullFlagValue?: null;
-  bytesValue?: Buffer;
-  textValue?: string;
-}
-
-type Converter = Record<YdbDataTypeId, (r: RawData)=> FieldType | JsonType>
+type Converter = Record<YdbDataTypeId, (r: RawDataType)=> FieldType | JsonType>
 
 const CONVERTER: Converter = {
   [YdbDataType.date]: (r) => new Date(r.uint64Value!.toNumber() / 1000),
@@ -31,16 +18,7 @@ const CONVERTER: Converter = {
   [YdbDataType.json]: (r) => JSON.parse(r.textValue!) as JsonType,
 } as const
 
-type RawFieldType = {
-  typeId?: YdbDataTypeId
-  optionalType?: {
-    item?: {
-      typeId?: YdbDataTypeId
-    }
-  }
-}
-
-export const convert = (row: RawData, type: RawFieldType) => {
+export const convert = (row: RawDataType, type: RawFieldType) => {
   if (Object.keys(row).includes('nullFlagValue')) return null
 
   const typeId = type.optionalType?.item?.typeId || type.typeId

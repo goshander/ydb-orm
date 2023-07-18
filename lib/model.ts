@@ -1,7 +1,7 @@
 import { convert } from './convert'
 import { escape } from './escape'
 import {
-  PrimitiveType, WhereType, YdbBaseModel, YdbBaseType, YdbSchemaType,
+  PrimitiveType, WhereType, YdbBaseModel, YdbBaseType, YdbResultType, YdbSchemaFieldType, YdbSchemaType,
 } from './type'
 import { where } from './where'
 
@@ -18,6 +18,12 @@ export class YdbModel implements YdbBaseModel {
 
   static schema: YdbSchemaType
   get schema() { return this.base.schema }
+
+  static get fields() {
+    if (this.schema.field) return this.schema.field as YdbSchemaFieldType
+    return this.schema as YdbSchemaFieldType
+  }
+  get fields() { return this.base.fields }
 
   static get className() { return this.name }
   get className() { return this.base.className }
@@ -57,13 +63,13 @@ export class YdbModel implements YdbBaseModel {
   static async count(options: { where?: WhereType, field: string, distinct: boolean } = { distinct: false, field: '' }) {
     const result = await this.ctx.session(async (session) => {
       let cField = options.field
-      if (cField == null) cField = this.primaryKey
+      if (cField === undefined) cField = this.primaryKey
 
       if (options.distinct) cField = `DISTINCT ${cField}`
 
       let yql = `SELECT COUNT(${cField}) as count FROM ${this.tableName}`
 
-      if (options.where != null) {
+      if (options.where) {
         yql = `${yql} ${where(options.where)}`
       }
 
@@ -73,9 +79,9 @@ export class YdbModel implements YdbBaseModel {
 
       return resultSets[0]
     })
+    const typedResult = result as YdbResultType
 
-    /* @ts-ignore */
-    const count = convert(result.rows[0].items[0], result.columns[0].type) as number
+    const count = convert(typedResult.rows[0].items[0], typedResult.columns[0].type) as number
 
     return count
   }
@@ -84,10 +90,10 @@ export class YdbModel implements YdbBaseModel {
     const result = await this.ctx.session(async (session) => {
       let yql = `SELECT * FROM ${this.tableName}`
 
-      if (options.where != null) {
+      if (options.where) {
         yql = `${yql} ${where(options.where)}`
       }
-      if (options.order && this.schema[options.order] != null) {
+      if (options.order && this.fields[options.order]) {
         yql = `${yql} ORDER BY ${options.order} DESC`
       }
       if (options.limit) {
@@ -109,12 +115,10 @@ export class YdbModel implements YdbBaseModel {
 
     const out: Array<YdbModel> = []
 
-    /* @ts-ignore */
-    result.rows.forEach((r) => {
-      const data = {}
-      /* @ts-ignore */
-      result.columns.forEach((c, ind) => {
-        /* @ts-ignore */
+    const typedResult = result as YdbResultType
+    typedResult.rows.forEach((r) => {
+      const data: Record<string, PrimitiveType> = {}
+      typedResult.columns.forEach((c, ind) => {
         data[c.name] = convert(r.items[ind], c.type)
       })
 
@@ -162,10 +166,12 @@ export class YdbModel implements YdbBaseModel {
   async save() {
     await this.ctx.session(async (session) => {
       const table = await session.describeTable(this.tableName)
-      const columns = table.columns.map((c) => c.name)
+      const columns = table.columns.map((c) => {
+        if (!c.name) throw Error(`ydb: column of table \`${this.tableName}\` has null name`)
+        return c.name
+      })
 
-      /* @ts-ignore */
-      const values = columns.map((c) => escape(this[c])).join(', ')
+      const values = columns.map((c) => escape(this[c] as PrimitiveType)).join(', ')
 
       const yql = `UPSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${values});`
 
@@ -202,14 +208,14 @@ export class YdbModel implements YdbBaseModel {
 
       return resultSets[0]
     })
+    const typedResult = result as YdbResultType
 
-    /* @ts-ignore */
-    this[field] = convert(result.rows[0].items[0], result.columns[0].type)
+    this[field] = convert(typedResult.rows[0].items[0], typedResult.columns[0].type)
   }
 
   toJson() {
     const json: Record<string, PrimitiveType> = {}
-    Object.keys(this.schema).forEach((key: string) => {
+    Object.keys(this.fields).forEach((key: string) => {
       json[key] = this[key] as PrimitiveType
     })
 

@@ -34,8 +34,11 @@ export const YdbDataType = {
   json: Ydb.Type.PrimitiveTypeId.JSON,
 } as const
 export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
-export type YdbSchemaType = Record<string, YdbDataTypeId>
-export const SCHEMA_REJECTED_FIELD = ['ctx', 'base', 'schema', 'primaryKey', 'className', 'tableName'] as const
+export type YdbDataTypeWithOption = { type: YdbDataTypeId, index?: boolean, drop?: boolean, renamed?: string }
+export type YdbSchemaFieldType = Record<string, YdbDataTypeId | YdbDataTypeWithOption>
+export type YdbSchemaOptionType = { strict?: boolean }
+export type YdbSchemaType = YdbSchemaFieldType | { field: YdbSchemaFieldType, option?: YdbSchemaOptionType }
+export const SCHEMA_REJECTED_FIELD = ['ctx', 'base', 'schema', 'field', 'primaryKey', 'className', 'tableName']
 
 export type YdbOptionsType = {
   token?: string
@@ -65,7 +68,7 @@ export class YdbBaseModel implements Record<string, unknown> {
   [field: string]: unknown
 
   constructor(fields: Record<string, PrimitiveType>) {
-    throw new Error('ydb: constructor not implemented')
+    throw new Error(`ydb: constructor not implemented: ${JSON.stringify({ fields })}`)
   }
 
   static primaryKey: string
@@ -73,6 +76,8 @@ export class YdbBaseModel implements Record<string, unknown> {
 
   static schema: YdbSchemaType
   get schema(): YdbSchemaType { throw new Error('ydb: getter `schema` not implemented') }
+  static fields: YdbSchemaFieldType
+  get fields(): YdbSchemaFieldType { throw new Error('ydb: getter `fields` not implemented') }
 
   static className: string
   get className(): string { throw new Error('ydb: getter `className` not implemented') }
@@ -84,34 +89,34 @@ export class YdbBaseModel implements Record<string, unknown> {
   get ctx(): YdbBaseType { throw new Error('ydb: getter `ctx` not implemented') }
   static ctx: YdbBaseType
   static setCtx(ctx: YdbBaseType): void {
-    throw new Error('ydb: static method `setCtx` not implemented')
+    throw new Error(`ydb: static method \`setCtx\` not implemented: ${JSON.stringify({ ctx })}`)
   }
 
   static copy(from: string, to: string): Promise<unknown> {
-    throw new Error('ydb: static method `copy` not implemented')
+    throw new Error(`ydb: static method \`copy\` not implemented: ${JSON.stringify({ from, to })}`)
   }
   static count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number> {
-    throw new Error('ydb: static method `count` not implemented')
+    throw new Error(`ydb: static method \`count\` not implemented: ${JSON.stringify({ options })}`)
   }
   static find(options: {
     where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
   }): Promise<Array<YdbBaseModel>> {
-    throw new Error('ydb: static method `find` not implemented')
+    throw new Error(`ydb: static method \`find\` not implemented: ${JSON.stringify({ options })}`)
   }
   static findByPk(pk: string): Promise<YdbBaseModel | null> {
-    throw new Error('ydb: static method `findByPk` not implemented')
+    throw new Error(`ydb: static method \`findByPk\` not implemented: ${JSON.stringify({ pk })}`)
   }
   static findOne(options: { where?: WhereType, order?: string }): Promise<YdbBaseModel | null> {
-    throw new Error('ydb: static method `findOne` not implemented')
+    throw new Error(`ydb: static method \`findOne\` not implemented: ${JSON.stringify({ options })}`)
   }
   static update(data: Record<string, PrimitiveType>, options: { where: WhereType }): Promise<void> {
-    throw new Error('ydb: static method `update` not implemented')
+    throw new Error(`ydb: static method \`update\` not implemented: ${JSON.stringify({ data, options })}`)
   }
 
   save(): Promise<YdbBaseModel> { throw new Error('ydb: method `save` not implemented') }
   delete(): Promise<void> { throw new Error('ydb: method `delete` not implemented') }
   increment(field: string, options: { by?: number }): Promise<void> {
-    throw new Error('ydb: method `increment` not implemented')
+    throw new Error(`ydb: method \`increment\` not implemented: ${JSON.stringify({ field, options })}`)
   }
 
   toJson(): Record<string, PrimitiveType> { throw new Error('ydb: method `toJson` not implemented') }
@@ -126,6 +131,39 @@ export type YdbFastifyOptionsType = {
   model?: Array<YdbBaseModelType>
   timeout?: number
   sync?: boolean
+}
+
+export type RawDataType = {
+  uint8Value?: number;
+  uint32Value?: number;
+  uint64Value?: Long;
+  int8Value?: number;
+  int32Value?: number;
+  int64Value?: Long;
+  boolValue?: boolean;
+  nullFlagValue?: null;
+  bytesValue?: Buffer;
+  textValue?: string;
+}
+export type RawFieldType = {
+  typeId?: YdbDataTypeId
+  optionalType?: {
+    item?: {
+      typeId?: YdbDataTypeId
+    }
+  }
+}
+export type YdbColumnType = {
+  name: string
+  type: RawFieldType
+}
+export type YdbIndexType = {
+  name: string
+  indexColumns: string[]
+}
+export type YdbResultType = {
+  columns: Array<YdbColumnType>
+  rows: Array<{ items: Array<RawDataType> }>
 }
 
 export type YdbErrorType = YdbError

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable import/no-unresolved */
 const fastify = require('fastify')
 const ydb = require('ydb-orm')

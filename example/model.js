@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable import/no-unresolved */
 const argon2 = require('argon2')
 const { nanoid } = require('nanoid')
@@ -11,10 +12,11 @@ class User extends YdbModel {
     createdAt: YdbDataType.date,
   }
 
-  constructor({
-    login, createdAt, id = null, password,
-  }) {
-    super()
+  constructor(fields) {
+    super(fields)
+    const {
+      login, createdAt, id = null, password,
+    } = fields
     this.id = id || nanoid()
     this.login = login
     this.password = password

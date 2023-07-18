@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 
-import { YdbDataType, YdbModel } from '../..'
+import { YdbDataType, YdbModel, YdbSchemaType } from '../..'
 
 type Fields = {
   id: string
@@ -15,7 +15,7 @@ type Fields = {
 }
 
 export class Game extends YdbModel implements Fields {
-  static schema = {
+  static schema: YdbSchemaType = {
     id: YdbDataType.ascii,
     meta: YdbDataType.ascii,
     user: YdbDataType.json, // [{id, name}, {id, name}]

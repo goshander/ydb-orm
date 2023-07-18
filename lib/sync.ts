@@ -1,142 +1,237 @@
-// @ts-nocheck
+import type { BaseLogger } from 'pino'
 import {
   AlterTableDescription,
   Column,
+  Session,
   TableDescription,
+  TableIndex,
   Ydb,
 } from 'ydb-sdk'
 
-export async function sync() {
-  await this.session(async (session) => {
-    const models = Object.values(this.model)
+import {
+  SCHEMA_REJECTED_FIELD,
+  YdbBaseModelType,
+  YdbBaseType,
+  YdbColumnType,
+  YdbDataTypeId,
+  YdbDataTypeWithOption,
+  YdbIndexType,
+  YdbSchemaFieldType,
+  YdbSchemaOptionType,
+} from './type'
 
-    // eslint-disable-next-line no-restricted-syntax
-    for (const m of models) {
-      let tableName = null
+type RawTableStructure = Awaited<ReturnType<Session['describeTable']>>
+type TableStructure = Record<string, YdbDataTypeId>
+type IndexStructure = Record<string, string>
+
+const exportFieldType = (fieldType: YdbDataTypeId | YdbDataTypeWithOption) => {
+  if ((fieldType as YdbDataTypeWithOption).type) {
+    return fieldType as YdbDataTypeWithOption
+  }
+  return { type: fieldType as YdbDataTypeId } as YdbDataTypeWithOption
+}
+
+const createTable = async (
+  session: Session,
+  {
+    tableName, schema, primaryKey, logger,
+  }: { tableName: string, schema: YdbSchemaFieldType, primaryKey: string, logger: BaseLogger },
+) => {
+  let tableDesc = new TableDescription()
+
+  Object.entries(schema).forEach(([field, fieldTypeData]) => {
+    const fieldType = exportFieldType(fieldTypeData)
+
+    if (fieldType.type == null) return
+    if (fieldType.drop) return
+
+    tableDesc = tableDesc.withColumn(new Column(
+      field,
+      Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
+    ))
+
+    if (fieldType.index) {
+      tableDesc = tableDesc.withIndex(new TableIndex(`index_${tableName}_${field}`).withIndexColumns(field))
+    }
+  })
+
+  tableDesc = tableDesc.withPrimaryKey(primaryKey)
+
+  logger.info({ msg: 'ydb: create table', table: tableName })
+  await session.createTable(tableName, tableDesc)
+}
+
+const alterTable = async (
+  session: Session,
+  {
+    tableName,
+    schema,
+    option,
+    model,
+    table,
+    indexes,
+    logger,
+  }: {
+    tableName: string,
+    schema: YdbSchemaFieldType,
+    option: YdbSchemaOptionType,
+    table: TableStructure,
+    indexes: IndexStructure,
+    logger: BaseLogger,
+    model: YdbBaseModelType,
+  },
+) => {
+  let tableDesc = new AlterTableDescription()
+  let alter = false
+
+  const renamed: Record<string, YdbDataTypeWithOption> = {}
+
+  Object.entries(schema)
+    .forEach(([field, fieldTypeData]) => {
+      const fieldType = exportFieldType(fieldTypeData)
+
+      if (fieldType.type == null) return
+
+      if (fieldType.renamed && table[field] == null) {
+        renamed[fieldType.renamed] = fieldType
+        delete table[field]
+        return
+      }
+
+      if (fieldType.drop) {
+        tableDesc = tableDesc.withDropColumn(field)
+
+        if (indexes[field]) {
+          if (!tableDesc.dropIndexes) {
+            tableDesc.dropIndexes = []
+          }
+          tableDesc.dropIndexes.push(indexes[field])
+        }
+
+        alter = true
+        delete table[field]
+        return
+      }
+
+      if (!table[field]) {
+        tableDesc = tableDesc.withAddColumn(new Column(
+          field,
+          Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
+        ))
+        alter = true
+        return
+      }
+
+      if (table[field] !== fieldType.type) {
+        tableDesc = tableDesc.withAlterColumn(new Column(
+          field,
+          Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
+        ))
+        alter = true
+      }
+
+      if (option.strict) delete table[field]
+    })
+
+  if (option.strict) {
+    Object.keys(table).forEach((field) => {
+      tableDesc = tableDesc.withDropColumn(field)
+      alter = true
+    })
+  }
+
+  if (alter) {
+    await session.alterTable(tableName, tableDesc)
+    logger.info({ msg: 'ydb: alter table', table: tableName })
+  }
+
+  // move column
+  const renamedFields = Object.entries(renamed)
+
+  for (let i = 0; i < renamedFields.length; i += 1) {
+    const [field, fieldType] = renamedFields[i]
+    await session.alterTable(tableName, new AlterTableDescription().withAddColumn(new Column(
+      field,
+      Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
+    )))
+
+    await model.copy(fieldType.renamed!, field)
+  }
+}
+
+export const sync = async (ctx: YdbBaseType) => {
+  const models = Object.values(ctx.model)
+
+  await ctx.session(async (session) => {
+    for (let i = 0; i < models.length; i += 1) {
+      const model = models[i]
+
+      const tableName: string = model.tableName
+      let tableStructure: RawTableStructure | undefined
 
       try {
-        tableName = await session.describeTable(m.tableName)
+        tableStructure = await session.describeTable(model.tableName)
       } catch {
-        this.logger.info({ msg: 'ydb: table not found', table: m.tableName })
+        ctx.logger.info({ msg: 'ydb: table not found', table: model.tableName })
       }
 
-      let schema = m.schema
-      let option = {}
+      let schema: YdbSchemaFieldType
+      let option: YdbSchemaOptionType = {}
 
-      if (schema.field && schema.option) {
-        option = schema.option
-        schema = schema.field
+      if (model.schema.field) {
+        schema = model.schema.field as YdbSchemaFieldType
+        const schemaOption = model.schema.option as YdbSchemaOptionType | undefined
+        if (schemaOption) { option = schemaOption }
+      } else {
+        schema = model.schema as YdbSchemaFieldType
       }
 
-      // alter table
-      if (tableName) {
-        let tableDesc = new AlterTableDescription()
-        let alter = false
+      const schemaFields = Object.keys(schema)
+      for (let j = 0; j < schemaFields.length; j += 1) {
+        if (SCHEMA_REJECTED_FIELD.includes(schemaFields[i])) {
+          throw new Error(`ydb: schema rejected field \`${schemaFields[j]}\` detected at table \`${tableName}\``)
+        }
+      }
 
-        const current = {}
-        tableName.columns.forEach((col) => {
-          current[col.name] = col.type.optionalType.item.typeId
+      // table not exist
+      if (tableStructure === undefined) {
+        await createTable(session, {
+          tableName,
+          schema,
+          primaryKey: model.primaryKey,
+          logger: ctx.logger,
         })
-
-        const renamed = {}
-
-        Object.entries(schema)
-          .forEach(([field, type]) => {
-            let tId = type
-            if (type === Object(type)) {
-              tId = type.type
-            }
-            if (tId == null) return
-
-            if (type.renamed && current[field] == null) {
-              renamed[field] = type
-              delete current[field]
-              return
-            }
-
-            if (type.drop) {
-              tableDesc = tableDesc.withDropColumn(field)
-
-              // const dIndex = table.indexes.filter((i) => i.indexColumns.includes(field)).map((i) => i.name)
-              // drop index not implemented
-
-              alter = true
-              delete current[field]
-              return
-            }
-
-            if (!current[field]) {
-              tableDesc = tableDesc.withAddColumn(new Column(
-                field,
-                Ydb.Type.create({ optionalType: { item: { typeId: tId } } }),
-              ))
-              alter = true
-              return
-            }
-
-            if (current[field] !== tId) {
-              tableDesc = tableDesc.withAlterColumn(new Column(
-                field,
-                Ydb.Type.create({ optionalType: { item: { typeId: tId } } }),
-              ))
-              alter = true
-            }
-
-            if (option.strict) delete current[field]
-          })
-
-        if (option.strict) {
-          Object.keys(current).forEach((field) => {
-            tableDesc = tableDesc.withDropColumn(field)
-            alter = true
-          })
-        }
-
-        if (alter) {
-          await session.alterTable(m.tableName, tableDesc)
-          this.logger.info({ msg: 'ydb: alter table', table: m.tableName })
-        }
-
-        // move column
-        // eslint-disable-next-line no-restricted-syntax
-        for (const [field, seed] of Object.entries(renamed)) {
-          await session.alterTable(m.tableName, new AlterTableDescription().withAddColumn(new Column(
-            field,
-            Ydb.Type.create({ optionalType: { item: { typeId: seed.type } } }),
-          )))
-
-          await m.copy(seed.renamed, field)
-        }
-
         continue
       }
 
-      // create table
-      let tableDesc = new TableDescription()
+      const table: TableStructure = {}
+      const indexes: IndexStructure = {}
 
-      Object.entries(m.schema).forEach(([field, type]) => {
-        let tId = type
+      const tableColumns = tableStructure.columns as Array<YdbColumnType>
+      const tableIndexes = tableStructure.indexes as Array<YdbIndexType>
 
-        if (type === Object(type)) {
-          tId = type.type
+      tableIndexes.forEach((index) => {
+        if (index.name && index.indexColumns && index.indexColumns[0]) {
+          indexes[index.indexColumns[0]] = index.name
         }
-        if (tId == null) return
-        if (type.drop) return
-
-        tableDesc = tableDesc.withColumn(new Column(
-          field,
-          Ydb.Type.create({ optionalType: { item: { typeId: tId } } }),
-        ))
       })
 
-      Object.entries(schema).forEach(([field, seed]) => {
-        if (seed.index) tableDesc.withIndex({ name: `index_${m.tableName}_${field}`, indexColumns: [field] })
+      tableColumns.forEach((col) => {
+        const typeId = col?.type?.optionalType?.item?.typeId
+        if (col.name && typeId) {
+          table[col.name] = typeId
+        }
       })
 
-      tableDesc = tableDesc.withPrimaryKey(m.primaryKey)
-
-      this.logger.info({ msg: 'ydb: create table', table: m.tableName })
-      await session.createTable(m.tableName, tableDesc)
+      await alterTable(session, {
+        tableName,
+        schema,
+        option,
+        model,
+        table,
+        indexes,
+        logger: ctx.logger,
+      })
     }
   })
 }
