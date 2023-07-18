@@ -18,7 +18,8 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // ! FIXME
+    "noUnusedParameters": false,
     "resolveJsonModule": true,
     "rootDir": ".",
     "skipLibCheck": true,

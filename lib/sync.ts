@@ -1,12 +1,12 @@
 // @ts-nocheck
-const {
-  Ydb,
-  TableDescription,
-  Column,
+import {
   AlterTableDescription,
-} = require('ydb-sdk')
+  Column,
+  TableDescription,
+  Ydb,
+} from 'ydb-sdk'
 
-async function sync() {
+export async function sync() {
   await this.session(async (session) => {
     const models = Object.values(this.model)
 
@@ -140,5 +140,3 @@ async function sync() {
     }
   })
 }
-
-module.exports = sync

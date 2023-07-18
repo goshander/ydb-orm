@@ -12,9 +12,8 @@ import {
   getSACredentialsFromJson,
 } from 'ydb-sdk'
 
+import { sync } from './sync'
 import { YdbBaseModelType, YdbBaseType, YdbOptionsType } from './type'
-
-const sync = require('./sync')
 
 let db: Ydb
 

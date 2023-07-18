@@ -20,12 +20,11 @@ node_modules
 .eslintignore
 .eslintrc.js
 
-test.js
 test
 example
 docker
 
 docker-compose.yml
 
-# temp ts migration
 *.ts
+tsconfig.json
