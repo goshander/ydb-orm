@@ -11,8 +11,9 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
     "test": "tap --ts --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
@@ -20,7 +21,7 @@
     "test-docker": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test",
     "test-docker-js": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test npm run test-js",
     "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local",
-    "build": "rm -rf ./dist && tsc index.ts --outDir dist --esModuleInterop",
+    "build": "rm -rf ./dist && tsc index.ts --outDir dist --esModuleInterop --declaration",
     "build-test": "rm -rf ./dist && tsc test/test.spec.ts --outDir dist --esModuleInterop"
   },
   "dependencies": {

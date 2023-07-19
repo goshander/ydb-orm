@@ -27,4 +27,5 @@ docker
 docker-compose.yml
 
 *.ts
+!*.d.ts
 tsconfig.json
