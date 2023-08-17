@@ -3,6 +3,13 @@ import { TestOptions, test } from '../test'
 import { Game as GameModel } from './model/game'
 import { User as UserModel } from './model/user'
 
+declare module '..' {
+  interface YdbModelRegistryType {
+    Game: typeof GameModel
+    User: typeof UserModel
+  }
+}
+
 const options: TestOptions = {
   models: [
     UserModel,
@@ -11,8 +18,8 @@ const options: TestOptions = {
 }
 
 test('game', options, async (t, { db }) => {
-  const User = db.model.User as typeof UserModel
-  const Game = db.model.Game as typeof GameModel
+  const User = db.model.User
+  const Game = db.model.Game
 
   const user = new User({ name: 'test' })
   t.teardown(async () => {

@@ -92,11 +92,15 @@ export type YdbOptionType = {
   meta?: boolean
 }
 
-export type YdbType = {
+export interface YdbModelRegistryType {
+  [key: string]: YdbModelConstructorType
+}
+
+export interface YdbType {
   timeout: number
   driver: Driver
   logger: BaseLogger
-  model: Record<string, YdbModelConstructorType>
+  model: YdbModelRegistryType
 
   session(action: (session: Session)=> Promise<unknown>): Promise<unknown>
   connect(): Promise<void>
@@ -105,7 +109,7 @@ export type YdbType = {
   load(model: YdbModelConstructorType): void
 }
 
-export type YdbConstructorType = {
+export interface YdbConstructorType {
   new (endpoint: string, database: string, option: YdbOptionType): YdbType;
   get db(): YdbType;
   init: (endpoint: string, database: string, option: YdbOptionType)=> YdbType;
