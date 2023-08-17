@@ -13,23 +13,47 @@ import {
 } from 'ydb-sdk'
 
 import { sync } from './sync'
-import { YdbBaseModelType, YdbBaseType, YdbOptionsType } from './type'
+import {
+  YdbConstructorType, YdbModelConstructorType, YdbOptionType, YdbType,
+} from './type'
 
-let db: Ydb
-
-export class Ydb implements YdbBaseType {
+export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   timeout: number = 10000
   driver: Driver
   logger: BaseLogger
-  model: Record<string, YdbBaseModelType>
+  model: Record<string, YdbModelConstructorType>
+
+  private static _db: YdbType
 
   static get db() {
-    return db
+    return Ydb._db
+  }
+
+  static init(endpoint: string, database: string, {
+    credential, token, logger, timeout, meta,
+  }: YdbOptionType = {}) {
+    let cert
+    if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
+      credential = getSACredentialsFromJson(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))
+    }
+    if (process.env.YDB_CERTS) {
+      cert = {
+        rootCertificates: fs.readFileSync(path.join(process.env.YDB_CERTS, 'ca.pem')),
+        clientPrivateKey: fs.readFileSync(path.join(process.env.YDB_CERTS, 'key.pem')),
+        clientCertChain: fs.readFileSync(path.join(process.env.YDB_CERTS, 'cert.pem')),
+      }
+    }
+
+    Ydb._db = new Ydb(endpoint, database, {
+      credential, token, logger, timeout, cert, meta,
+    })
+
+    return Ydb._db
   }
 
   constructor(endpoint: string, database: string, {
     token, credential, logger, timeout, cert, meta,
-  }: YdbOptionsType) {
+  }: YdbOptionType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()
 
@@ -71,36 +95,12 @@ export class Ydb implements YdbBaseType {
     }
   }
 
-  sync() {
+  sync(): Promise<void> {
     return sync(this)
   }
 
-  load(model: YdbBaseModelType) {
+  load(model: YdbModelConstructorType) {
     model.setCtx(this)
     this.model[model.className] = model
   }
 }
-
-export const ydbInit = (endpoint: string, database: string, {
-  credential, token, logger, timeout, meta,
-}: YdbOptionsType = {}) => {
-  let cert
-  if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
-    credential = getSACredentialsFromJson(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))
-  }
-  if (process.env.YDB_CERTS) {
-    cert = {
-      rootCertificates: fs.readFileSync(path.join(process.env.YDB_CERTS, 'ca.pem')),
-      clientPrivateKey: fs.readFileSync(path.join(process.env.YDB_CERTS, 'key.pem')),
-      clientCertChain: fs.readFileSync(path.join(process.env.YDB_CERTS, 'cert.pem')),
-    }
-  }
-
-  db = new Ydb(endpoint, database, {
-    credential, token, logger, timeout, cert, meta,
-  })
-
-  return db
-}
-
-export type YdbType = typeof Ydb

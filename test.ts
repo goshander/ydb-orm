@@ -1,14 +1,17 @@
+import { BaseLogger } from 'pino'
 import tap from 'tap'
 
-import { YdbErrorType, YdbModelType, ydbInit } from '.'
+import {
+  Ydb, YdbErrorType, YdbModelConstructorType, YdbType,
+} from '.'
 
 export type TestOptions = {
-  models: Array<YdbModelType>
+  models: Array<YdbModelConstructorType>
 }
 
 export type TestCtx = {
-  db: any;
-  logger: any;
+  db: YdbType;
+  logger: BaseLogger;
 }
 
 export type TestCallback = (t: Tap.Test, ctx: TestCtx)=> void | Promise<void>
@@ -33,7 +36,7 @@ async function timeoutAsync(time: number) {
 }
 
 async function prepare(t: Tap.Test, options?: TestOptions) {
-  const db = ydbInit(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
+  const db = Ydb.init(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
     timeout: 1000,
   })
 

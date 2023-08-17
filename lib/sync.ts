@@ -8,16 +8,16 @@ import {
   Ydb,
 } from 'ydb-sdk'
 
+import { SCHEMA_REJECTED_FIELD } from './constant'
 import {
-  SCHEMA_REJECTED_FIELD,
-  YdbBaseModelType,
-  YdbBaseType,
   YdbColumnType,
   YdbDataTypeId,
   YdbDataTypeWithOption,
   YdbIndexType,
+  YdbModelConstructorType,
   YdbSchemaFieldType,
   YdbSchemaOptionType,
+  YdbType,
 } from './type'
 
 type RawTableStructure = Awaited<ReturnType<Session['describeTable']>>
@@ -78,7 +78,7 @@ const alterTable = async (
     table: TableStructure,
     indexes: IndexStructure,
     logger: BaseLogger,
-    model: YdbBaseModelType,
+    model: YdbModelConstructorType,
   },
 ) => {
   let tableDesc = new AlterTableDescription()
@@ -159,7 +159,7 @@ const alterTable = async (
   }
 }
 
-export const sync = async (ctx: YdbBaseType) => {
+export const sync = async (ctx: YdbType) => {
   const models = Object.values(ctx.model)
 
   await ctx.session(async (session) => {

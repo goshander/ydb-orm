@@ -17,6 +17,7 @@ export type PrimitiveType = FieldType | ArrayType | JsonType
 
 export type LikeType = { like: PrimitiveType }
 export type WhereType = Record<string, PrimitiveType | LikeType>
+export type FieldsType = Record<string, PrimitiveType>
 
 export const YdbDataType = {
   date: Ydb.Type.PrimitiveTypeId.TIMESTAMP,
@@ -36,11 +37,48 @@ export const YdbDataType = {
 export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
 export type YdbDataTypeWithOption = { type: YdbDataTypeId, index?: boolean, drop?: boolean, renamed?: string }
 export type YdbSchemaFieldType = Record<string, YdbDataTypeId | YdbDataTypeWithOption>
-export type YdbSchemaOptionType = { strict?: boolean }
+export type YdbSchemaOptionType = { primaryKey?: string, strict?: boolean }
 export type YdbSchemaType = YdbSchemaFieldType | { field: YdbSchemaFieldType, option?: YdbSchemaOptionType }
-export const SCHEMA_REJECTED_FIELD = ['ctx', 'base', 'schema', 'field', 'primaryKey', 'className', 'tableName']
 
-export type YdbOptionsType = {
+export interface YdbModelType {
+  model: YdbModelConstructorType
+
+  save(): Promise<this>
+  delete(): Promise<void>
+  increment(field: string, options?: { by?: number }): Promise<void>
+
+  toJson(): FieldsType
+}
+
+// dirty solution: https://github.com/microsoft/TypeScript/issues/5863
+type ThisConstructorType<T> = new(fields: FieldsType)=> T
+
+export interface YdbModelConstructorType {
+  new (fields: FieldsType): YdbModelType;
+
+  _tableName: string
+  _primaryKey: string
+  _ctx: YdbType
+
+  primaryKey: string
+  schema: YdbSchemaType
+  fields: YdbSchemaFieldType
+  className: string
+  tableName: string
+  ctx: YdbType
+  setCtx(ctx: YdbType): void
+
+  copy(from: string, to: string): Promise<void>
+  count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number>
+  find<T extends YdbModelType>(this: ThisConstructorType<T>, options?: {
+    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
+  }): Promise<Array<T>>
+  findByPk<T extends YdbModelType>(this: ThisConstructorType<T>, pk: string): Promise<T | null>
+  findOne<T extends YdbModelType>(this: ThisConstructorType<T>, options: { where?: WhereType, order?: string }): Promise<T | null>
+  update(fields: FieldsType, options: { where: WhereType }): Promise<void>
+}
+
+export type YdbOptionType = {
   token?: string
   credential?: {
     serviceAccountId: string;
@@ -53,82 +91,32 @@ export type YdbOptionsType = {
   cert?: ISslCredentials
   meta?: boolean
 }
-export type YdbBaseType = {
+
+export type YdbType = {
   timeout: number
   driver: Driver
   logger: BaseLogger
-  model: Record<string, YdbBaseModelType>
+  model: Record<string, YdbModelConstructorType>
 
   session(action: (session: Session)=> Promise<unknown>): Promise<unknown>
+  connect(): Promise<void>
   close(): Promise<void>
-  load(model: YdbBaseModelType): void
+  sync(): Promise<void>
+  load(model: YdbModelConstructorType): void
 }
 
-export class YdbBaseModel implements Record<string, unknown> {
-  [field: string]: unknown
-
-  constructor(fields: Record<string, PrimitiveType>) {
-    throw new Error(`ydb: constructor not implemented: ${JSON.stringify({ fields })}`)
-  }
-
-  static primaryKey: string
-  get primaryKey(): string { throw new Error('ydb: getter `primaryKey` not implemented') }
-
-  static schema: YdbSchemaType
-  get schema(): YdbSchemaType { throw new Error('ydb: getter `schema` not implemented') }
-  static fields: YdbSchemaFieldType
-  get fields(): YdbSchemaFieldType { throw new Error('ydb: getter `fields` not implemented') }
-
-  static className: string
-  get className(): string { throw new Error('ydb: getter `className` not implemented') }
-  static tableName: string
-  get tableName(): string { throw new Error('ydb: getter `tableName` not implemented') }
-
-  get base(): Object { throw new Error('ydb: getter `base` not implemented') }
-
-  get ctx(): YdbBaseType { throw new Error('ydb: getter `ctx` not implemented') }
-  static ctx: YdbBaseType
-  static setCtx(ctx: YdbBaseType): void {
-    throw new Error(`ydb: static method \`setCtx\` not implemented: ${JSON.stringify({ ctx })}`)
-  }
-
-  static copy(from: string, to: string): Promise<unknown> {
-    throw new Error(`ydb: static method \`copy\` not implemented: ${JSON.stringify({ from, to })}`)
-  }
-  static count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number> {
-    throw new Error(`ydb: static method \`count\` not implemented: ${JSON.stringify({ options })}`)
-  }
-  static find(options: {
-    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
-  }): Promise<Array<YdbBaseModel>> {
-    throw new Error(`ydb: static method \`find\` not implemented: ${JSON.stringify({ options })}`)
-  }
-  static findByPk(pk: string): Promise<YdbBaseModel | null> {
-    throw new Error(`ydb: static method \`findByPk\` not implemented: ${JSON.stringify({ pk })}`)
-  }
-  static findOne(options: { where?: WhereType, order?: string }): Promise<YdbBaseModel | null> {
-    throw new Error(`ydb: static method \`findOne\` not implemented: ${JSON.stringify({ options })}`)
-  }
-  static update(data: Record<string, PrimitiveType>, options: { where: WhereType }): Promise<void> {
-    throw new Error(`ydb: static method \`update\` not implemented: ${JSON.stringify({ data, options })}`)
-  }
-
-  save(): Promise<YdbBaseModel> { throw new Error('ydb: method `save` not implemented') }
-  delete(): Promise<void> { throw new Error('ydb: method `delete` not implemented') }
-  increment(field: string, options: { by?: number }): Promise<void> {
-    throw new Error(`ydb: method \`increment\` not implemented: ${JSON.stringify({ field, options })}`)
-  }
-
-  toJson(): Record<string, PrimitiveType> { throw new Error('ydb: method `toJson` not implemented') }
+export type YdbConstructorType = {
+  new (endpoint: string, database: string, option: YdbOptionType): YdbType;
+  get db(): YdbType;
+  init: (endpoint: string, database: string, option: YdbOptionType)=> YdbType;
 }
-export type YdbBaseModelType = typeof YdbBaseModel
 
 export type YdbFastifyOptionsType = {
   endpoint: string
   database: string
   token?: string
   meta?: boolean
-  model?: Array<YdbBaseModelType>
+  model?: Array<YdbModelConstructorType>
   timeout?: number
   sync?: boolean
 }

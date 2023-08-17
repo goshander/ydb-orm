@@ -38,7 +38,7 @@ export class Game extends YdbModel implements Fields {
   turn: Fields['turn']
   createdAt: Fields['createdAt']
 
-  constructor(fields: Partial<Fields>) {
+  constructor(fields: Partial<Fields> = {}) {
     super(fields)
 
     const {

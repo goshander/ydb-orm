@@ -11,8 +11,8 @@ const options: TestOptions = {
 }
 
 test('game', options, async (t, { db }) => {
-  const User: typeof UserModel = db.model.User
-  const Game: typeof GameModel = db.model.Game
+  const User = db.model.User as typeof UserModel
+  const Game = db.model.Game as typeof GameModel
 
   const user = new User({ name: 'test' })
   t.teardown(async () => {
@@ -33,13 +33,17 @@ test('game', options, async (t, { db }) => {
   t.teardown(async () => {
     await user2.delete()
   })
+  await user2.save()
+
+  const users = await User.find()
+  t.equal(users.length, 2)
 
   game.user.push({ id: user2.id, name: user2.name })
   await game.save()
 
   const gameCheck = await Game.findOne({ where: { id: game.id } })
 
-  t.same(gameCheck.toJson(), game.toJson())
+  t.same(gameCheck?.toJson(), game.toJson())
 
   // increment
   t.equal(game.turn, 0)
@@ -48,11 +52,11 @@ test('game', options, async (t, { db }) => {
   t.equal(game.turn, 1)
 
   let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
-  t.equal(gameTurnCheck.turn, 1)
+  t.equal(gameTurnCheck?.turn, 1)
 
   await game.increment('turn', { by: 5 })
   t.equal(game.turn, 6)
   gameTurnCheck = await Game.findOne({ where: { id: game.id } })
 
-  t.equal(gameTurnCheck.turn, 6)
+  t.equal(gameTurnCheck?.turn, 6)
 })

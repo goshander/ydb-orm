@@ -1,13 +1,13 @@
 import { fastifyPlugin } from 'fastify-plugin'
 import type { BaseLogger } from 'pino'
 
-import { ydbInit } from './db'
-import type { YdbBaseType, YdbErrorType, YdbFastifyOptionsType } from './type'
+import { Ydb } from './db'
+import type { YdbErrorType, YdbFastifyOptionsType, YdbType } from './type'
 
 declare module 'fastify' {
   interface FastifyInstance {
     logger?: BaseLogger
-    db?: YdbBaseType
+    db?: YdbType
   }
 }
 
@@ -27,7 +27,7 @@ async function timeoutAsync(time: number) {
 export const YdbFastify = fastifyPlugin(async (fastify: FastifyInstance, {
   endpoint, database, token, meta, model = [], timeout, sync,
 }: YdbFastifyOptionsType): Promise<void> => {
-  const db = ydbInit(endpoint, database, {
+  const db = Ydb.init(endpoint, database, {
     token, logger: fastify.logger, timeout, meta,
   })
 
