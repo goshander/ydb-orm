@@ -52,10 +52,16 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static get tableName() {
     if (this._tableName) return this._tableName
 
-    this._tableName = this.className[0].toLowerCase()
+    const schemaOption = this.schema.field && this.schema.option ? this.schema.option as YdbSchemaOptionType : {}
+
+    if (schemaOption.tableName) {
+      this._tableName = schemaOption.tableName
+    } else {
+      this._tableName = this.className[0].toLowerCase()
       + this.className
         .slice(1, this.className.length)
         .replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+    }
 
     return this._tableName
   }

@@ -37,7 +37,7 @@ export const YdbDataType = {
 export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
 export type YdbDataTypeWithOption = { type: YdbDataTypeId, index?: boolean, drop?: boolean, renamed?: string }
 export type YdbSchemaFieldType = Record<string, YdbDataTypeId | YdbDataTypeWithOption>
-export type YdbSchemaOptionType = { primaryKey?: string, strict?: boolean }
+export type YdbSchemaOptionType = { tableName?: string; primaryKey?: string, strict?: boolean }
 export type YdbSchemaType = YdbSchemaFieldType | { field: YdbSchemaFieldType, option?: YdbSchemaOptionType }
 
 export interface YdbModelType {
