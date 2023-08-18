@@ -2,11 +2,12 @@ import { BaseLogger } from 'pino'
 import tap from 'tap'
 
 import {
-  Ydb, YdbErrorType, YdbModelConstructorType, YdbType,
+  Ydb, YdbModelConstructorType, YdbType,
 } from '.'
 
 export type TestOptions = {
   models: Array<YdbModelConstructorType>
+  sync?: boolean
 }
 
 export type TestCtx = {
@@ -25,16 +26,6 @@ type TestArgs = [
   TestCallback,
 ]
 
-const NOT_READY = 'database doesn\'t have storage pools at all to create tablet channels to storage pool binding by profile id'
-
-async function timeoutAsync(time: number) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true)
-    }, time)
-  })
-}
-
 async function prepare(t: Tap.Test, options?: TestOptions) {
   const db = Ydb.init(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
     timeout: 1000,
@@ -51,21 +42,9 @@ async function prepare(t: Tap.Test, options?: TestOptions) {
 
   await db.connect()
 
-  // ready storage hack before sync
-  let dbSyncReady = false
-  while (!dbSyncReady) {
-    try {
-      await db.sync()
-      dbSyncReady = true
-    } catch (err) {
-      if ((err as YdbErrorType)?.issues?.[0]?.message === NOT_READY) {
-        await timeoutAsync(500)
-      } else {
-        throw err
-      }
-    }
+  if (options?.sync === true) {
+    await db.sync()
   }
-  // ready storage hack before sync
 
   return {
     db,

@@ -15,6 +15,7 @@ const options: TestOptions = {
     UserModel,
     GameModel,
   ],
+  sync: true,
 }
 
 test('game', options, async (t, { db }) => {

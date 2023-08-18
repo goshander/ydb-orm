@@ -14,14 +14,14 @@ import {
 
 import { sync } from './sync'
 import {
-  YdbConstructorType, YdbModelConstructorType, YdbOptionType, YdbType,
+  YdbConstructorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbType,
 } from './type'
 
 export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   timeout: number = 10000
   driver: Driver
   logger: BaseLogger
-  model: Record<string, YdbModelConstructorType>
+  model: YdbModelRegistryType
 
   private static _db: YdbType
 
@@ -78,6 +78,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       logger: this.logger,
     })
 
+    // @ts-ignore
     this.model = {}
   }
 
