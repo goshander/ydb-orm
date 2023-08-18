@@ -11,7 +11,7 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
