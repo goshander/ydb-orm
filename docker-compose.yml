@@ -9,11 +9,13 @@ services:
     depends_on:
       - database
     restart: "no"
+    ulimits:
+      memlock: -1
     image: ydb-orm:test
     environment:
       - NODE_ENV=test
 
-      - YDB_ENDPOINT=grpcs://database:2135
+      - YDB_ENDPOINT=grpc://database:2136
       - YDB_DATABASE=/local
 
       - YDB_CERTS=/ydb_certs
