@@ -16,13 +16,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
-    "test": "tap --ts --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
+    "test": "bun test --bail",
     "test-js": "rm -rf ./dist && npm run build-test && tap --bail --jobs=1 --reporter=list --no-coverage dist/test/**/*.spec.js",
     "test-docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
     "test-docker-js": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test npm run test-js",
     "test-docker-clean": "docker compose --env-file .env.test down -v --rmi local",
-    "build": "rm -rf ./dist && tsc index.ts --declaration --outDir dist --esModuleInterop",
-    "build-test": "rm -rf ./dist && tsc test/test.spec.ts --outDir dist --esModuleInterop"
+    "build": "rm -rf ./dist && tsc -p tsconfig.json",
+    "build-test": "rm -rf ./dist && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@yandex-cloud/nodejs-sdk": "^2.6.0",
@@ -30,19 +30,28 @@
     "ydb-sdk": "^4.6.0"
   },
   "devDependencies": {
-    "@types/tap": "^15.0.0",
+    "@types/long": "^5.0.0",
     "@typescript-eslint/eslint-plugin": "6.0.0",
     "@typescript-eslint/parser": "6.0.0",
+    "bun-types": "^1.0.1",
     "eslint": "8.45.0",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-config-airbnb-typescript": "17.1.0",
     "eslint-plugin-import": "2.27.5",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
+    "long": "^5.2.3",
     "nanoid": "^3.3.6",
-    "tap": "^16.3.0",
-    "ts-node": "^10.9.0",
+    "ts-node": "^10.9.1",
     "tslib": "^2.6.0",
-    "typescript": "^5.1.0"
+    "typescript": "^5.1.6"
+  },
+  "peerDependencies": {
+    "fastify": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "fastify": {
+      "optional": true
+    }
   }
 }

@@ -33,6 +33,9 @@
   },
   "include": [
     "index.ts",
-    "lib/**/*"
+    "test.ts",
+    "lib/**/*",
+    "example/**/*",
+    "test/**/*"
   ]
 }

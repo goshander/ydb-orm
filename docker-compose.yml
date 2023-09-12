@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   test:
-    command: npm run test
+    command: bun run test
     build:
       context: ./
       dockerfile: ./docker/test.dockerfile
@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=test
 
-      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_ENDPOINT=grpcs://database:2135
       - YDB_DATABASE=/local
 
       - YDB_CERTS=/ydb_certs
