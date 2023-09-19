@@ -1,36 +1,5 @@
 {
-  "compilerOptions": {
-    "lib": [
-      "es2017"
-    ],
-    "types": [
-      "bun-types",
-      "long",
-    ],
-    "target": "es2017",
-    "moduleResolution": "node16",
-    "module": "node16",
-    "outDir": "dist",
-    "alwaysStrict": true,
-    "declaration": true,
-    "downlevelIteration": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "importHelpers": true,
-    "isolatedModules": true,
-    "noImplicitAny": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "sourceMap": false,
-    "strict": true,
-    "strictBindCallApply": true,
-    "strictFunctionTypes": true,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": true
-  },
+  "extends": "tsconfig.json",
   "include": [
     "index.ts",
     "test.ts",
