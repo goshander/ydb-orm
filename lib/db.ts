@@ -68,13 +68,12 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     } else {
       authService = new AnonymousAuthService()
     }
-    /* @ts-ignore */
-    if (cert) authService.sslCredentials = cert
 
     this.driver = new Driver({
       endpoint,
       database,
       authService,
+      sslCredentials: cert,
       logger: this.logger,
     })
 

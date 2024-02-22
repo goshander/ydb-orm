@@ -25,9 +25,10 @@
     "build-test": "rm -rf ./dist && tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@yandex-cloud/nodejs-sdk": "^2.6.0",
+    "@yandex-cloud/nodejs-sdk": "^2.6.2",
+    "fastify-plugin": "^4.5.1",
     "pino": "^8.19.0",
-    "ydb-sdk": "^4.6.0"
+    "ydb-sdk": "^5.1.1"
   },
   "devDependencies": {
     "@types/long": "^5.0.0",
