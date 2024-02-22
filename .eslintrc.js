@@ -5,7 +5,7 @@ module.exports = {
   extends: ['airbnb-base', 'airbnb-typescript/base'],
   parserOptions: {
     tsconfigRootDir: __dirname,
-    project: ['./tsconfig.json'],
+    project: ['./tsconfig.eslint.json'],
   },
   rules: {
     'max-len': ['error', { code: 140 }],

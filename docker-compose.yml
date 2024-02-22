@@ -2,13 +2,15 @@ version: '3.7'
 
 services:
   test:
-    command: npm run test
+    command: bun run test
     build:
       context: ./
       dockerfile: ./docker/test.dockerfile
     depends_on:
       - database
     restart: "no"
+    ulimits:
+      memlock: -1
     image: ydb-orm:test
     environment:
       - NODE_ENV=test

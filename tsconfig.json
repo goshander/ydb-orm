@@ -3,26 +3,28 @@
     "lib": [
       "es2017"
     ],
+    "types": [
+      "bun-types",
+      "long",
+    ],
     "target": "es2017",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "module": "node16",
-    "allowJs": true,
+    "outDir": "dist",
     "alwaysStrict": true,
-    "checkJs": true,
     "declaration": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "noEmit": true,
     "noImplicitAny": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "strict": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
@@ -30,11 +32,7 @@
     "strictPropertyInitialization": true
   },
   "include": [
-    ".eslintrc.js",
     "index.ts",
-    "test.ts",
-    "lib/**/*",
-    "example/**/*",
-    "test/**/*"
+    "lib/**/*"
   ]
 }
