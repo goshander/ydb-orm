@@ -11,7 +11,7 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -21,20 +21,16 @@
     "test-docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
     "test-docker-js": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test npm run test-js",
     "test-docker-clean": "docker compose --env-file .env.test down -v --rmi local",
-    "build": "rm -rf ./dist && tsc index.ts --declaration",
+    "build": "rm -rf ./dist && tsc index.ts --declaration --outDir dist --esModuleInterop",
     "build-test": "rm -rf ./dist && tsc test/test.spec.ts --outDir dist --esModuleInterop"
   },
   "dependencies": {
-    "@yandex-cloud/nodejs-sdk": "^2.4.7",
-    "fastify-plugin": "^4.5.0",
-    "pino": "^8.14.1",
+    "@yandex-cloud/nodejs-sdk": "^2.6.0",
+    "pino": "^8.19.0",
     "ydb-sdk": "^4.6.0"
   },
-  "peerDependencies": {
-    "fastify": "^4.0.0"
-  },
   "devDependencies": {
-    "@types/tap": "^15.0.8",
+    "@types/tap": "^15.0.0",
     "@typescript-eslint/eslint-plugin": "6.0.0",
     "@typescript-eslint/parser": "6.0.0",
     "eslint": "8.45.0",
@@ -44,9 +40,9 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
     "nanoid": "^3.3.6",
-    "tap": "^16.3.7",
-    "ts-node": "^10.9.1",
+    "tap": "^18.7.0",
+    "ts-node": "^10.9.0",
     "tslib": "^2.6.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.0"
   }
 }

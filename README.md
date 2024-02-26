@@ -28,10 +28,10 @@ const db = Ydb.init(endpoint, database, {
 Ydb.db // singleton
 ```
 
-- as `fastify` web-server plugin:
+- as `fastify` web-server plugin, separated to `fastify-ydb-orm` package:
 
 ```javascript
-const { YdbFastify } = require('ydb-orm')
+const { YdbFastify } = require('fastify-ydb-orm')
 
 app.register(YdbFastify, {
   endpoint: process.env.YDB_ENDPOINT,

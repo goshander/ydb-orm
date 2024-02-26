@@ -115,16 +115,6 @@ export interface YdbConstructorType {
   init: (endpoint: string, database: string, option: YdbOptionType)=> YdbType;
 }
 
-export type YdbFastifyOptionsType = {
-  endpoint: string
-  database: string
-  token?: string
-  meta?: boolean
-  model?: Array<YdbModelConstructorType>
-  timeout?: number
-  sync?: boolean
-}
-
 export type RawDataType = {
   uint8Value?: number;
   uint32Value?: number;
