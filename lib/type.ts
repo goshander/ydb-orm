@@ -137,6 +137,7 @@ export type RawDataType = {
   bytesValue?: Buffer;
   textValue?: string;
 }
+
 export type RawFieldType = {
   typeId?: YdbDataTypeId
   optionalType?: {
@@ -145,14 +146,17 @@ export type RawFieldType = {
     }
   }
 }
+
 export type YdbColumnType = {
   name: string
   type: RawFieldType
 }
+
 export type YdbIndexType = {
   name: string
   indexColumns: string[]
 }
+
 export type YdbResultType = {
   columns: Array<YdbColumnType>
   rows: Array<{ items: Array<RawDataType> }>

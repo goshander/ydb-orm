@@ -18,9 +18,9 @@
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
     "test": "tap --ts --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
     "test-js": "rm -rf ./dist && npm run build-test && tap --bail --jobs=1 --reporter=list --no-coverage dist/test/**/*.spec.js",
-    "test-docker": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test",
-    "test-docker-js": "docker-compose --env-file .env.test build test && docker-compose --env-file .env.test run --rm test npm run test-js",
-    "test-docker-clean": "docker-compose --env-file .env.test down -v --rmi local",
+    "test-docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
+    "test-docker-js": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test npm run test-js",
+    "test-docker-clean": "docker compose --env-file .env.test down -v --rmi local",
     "build": "rm -rf ./dist && tsc index.ts --declaration",
     "build-test": "rm -rf ./dist && tsc test/test.spec.ts --outDir dist --esModuleInterop"
   },
