@@ -9,8 +9,6 @@ services:
     depends_on:
       - database
     restart: "no"
-    ulimits:
-      memlock: -1
     image: ydb-orm:test
     environment:
       - NODE_ENV=test
@@ -36,11 +34,6 @@ services:
     restart: "no"
     volumes:
       - ydb_certs:/ydb_certs
-      - ./ydb_certs:/ydb_certs
-    ports:
-      - 2136:2136
-      - 2135:2135
-      - 8765:8765
     networks:
       - local
 
