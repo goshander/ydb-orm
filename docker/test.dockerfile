@@ -1,13 +1,15 @@
-FROM node:18-buster-slim
+FROM oven/bun:1.0
 
-RUN mkdir -p /home/node/app && chown -R node:node /home/node/app
+RUN mkdir -p /home/bun/app && chown -R bun:bun /home/bun/app
 
-USER node
+USER bun
 
-WORKDIR /home/node/app
+WORKDIR /home/bun/app
 
-COPY --chown=node:node package*.json ./
+COPY --chown=bun:bun package.json ./
 
-RUN npm i
+COPY --chown=bun:bun bun.lockb ./
 
-COPY --chown=node:node . .
+RUN bun install
+
+COPY --chown=bun:bun . .

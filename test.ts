@@ -1,21 +1,30 @@
+import bunTest from 'bun:test'
 import { BaseLogger } from 'pino'
-import tap from 'tap'
 
 import {
   Ydb, YdbModelConstructorType, YdbType,
 } from '.'
 
-export type TestOptions = {
-  models: Array<YdbModelConstructorType>
+type YdbTestOptions = {
+  models?: Array<YdbModelConstructorType>
   sync?: boolean
 }
+
+export type TestOptions = bunTest.TestOptions & YdbTestOptions
 
 export type TestCtx = {
   db: YdbType;
   logger: BaseLogger;
 }
 
-export type TestCallback = (t: Tap.Test, ctx: TestCtx)=> void | Promise<void>
+type TestBase = {
+  expect: typeof bunTest.expect;
+  setSystemTime: typeof bunTest.setSystemTime;
+  mock: typeof bunTest.mock;
+  teardown: typeof bunTest.afterAll;
+}
+
+export type TestCallback = (t: TestBase, ctx: TestCtx)=> void | Promise<void>
 
 type TestArgs = [
   string,
@@ -26,7 +35,7 @@ type TestArgs = [
   TestCallback,
 ]
 
-async function prepare(t: Tap.Test, options?: TestOptions) {
+async function prepare(options?: YdbTestOptions) {
   const db = Ydb.init(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
     timeout: 1000,
   })
@@ -36,7 +45,7 @@ async function prepare(t: Tap.Test, options?: TestOptions) {
     options.models.forEach((m) => db.load(m))
   }
 
-  t.teardown(async () => {
+  bunTest.afterAll(async () => {
     await db.close()
   })
 
@@ -46,31 +55,50 @@ async function prepare(t: Tap.Test, options?: TestOptions) {
     await db.sync()
   }
 
-  return {
+  const ctx: TestCtx = {
     db,
     logger: db.logger,
   }
+
+  const test: TestBase = {
+    expect: bunTest.expect,
+    setSystemTime: bunTest.setSystemTime,
+    mock: bunTest.mock,
+    teardown: bunTest.afterAll,
+  }
+
+  return {
+    test,
+    ctx,
+  }
 }
 
-export const test = (...args: TestArgs) => {
-  let name
+type BunTest = (
+  label: string,
+  fn: ()=> void | Promise<unknown>,
+  options?: TestOptions,
+)=> void
+
+const baseTest = (args: TestArgs, testFunc: BunTest) => {
+  let name: string
   let callback: TestCallback
-  let options: TestOptions
+  let options: TestOptions | undefined
 
   if (args.length === 3) {
     [name, options, callback] = args
-
-    return tap.test(name, options, async (t) => {
-      const ctx = await prepare(t, options)
-
-      return callback(t, ctx)
-    })
+  } else {
+    [name, callback] = args
   }
 
-  [name, callback] = args
-  return tap.test(name, async (t) => {
-    const ctx = await prepare(t)
-
-    return callback(t, ctx)
-  })
+  return testFunc(name, async () => {
+    const { test, ctx } = await prepare(options)
+    await callback(test, ctx)
+  }, options)
 }
+
+export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
+test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
+test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
+test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
+test.if = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.if(cond)))
+test.skipIf = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.skipIf(cond)))
