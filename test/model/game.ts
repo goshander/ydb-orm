@@ -20,7 +20,10 @@ export class Game extends YdbModel implements Fields {
     meta: YdbDataType.ascii,
     user: YdbDataType.json, // [{id, name}, {id, name}]
     timeout: YdbDataType.json, // {turn: 30sec, answer: 30sec}
-    mode: YdbDataType.ascii, // hard, easy
+    mode: {
+      type: YdbDataType.ascii,
+      index: true,
+    }, // hard, easy
     score: YdbDataType.json, // {userId: 0, userId: 0}
     status: YdbDataType.ascii, // init, start, end
     turn: YdbDataType.int, // turn counter

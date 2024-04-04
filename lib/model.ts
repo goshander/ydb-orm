@@ -76,18 +76,23 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     })
   }
 
-  static async count(options: { where?: WhereType, field: string, distinct: boolean } = { distinct: false, field: '' }) {
+  static async count(options:
+  { where?: WhereType, field?: string, distinct: boolean, index?: string } | undefined
+  = { distinct: false }) {
     const { ctx, primaryKey, tableName } = this
 
     const result = await ctx.session(async (session) => {
-      let cField = options.field
+      let cField = options?.field
       if (cField === undefined) cField = primaryKey
 
-      if (options.distinct) cField = `DISTINCT ${cField}`
+      if (options?.distinct) cField = `DISTINCT ${cField}`
 
       let yql = `SELECT COUNT(${cField}) as count FROM ${tableName}`
 
-      if (options.where) {
+      if (options?.index) {
+        yql = `${yql} VIEW ${options.index}`
+      }
+      if (options?.where) {
         yql = `${yql} ${where(options.where)}`
       }
 
@@ -106,13 +111,16 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   static async find<T extends YdbModelType>(
     this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, offset?: number, limit?: number, page?: number, order?: string } = {},
+    options: { where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string } = {},
   ) {
     const { ctx, tableName, fields } = this as unknown as YdbModelConstructorType
 
     const result = await ctx.session(async (session) => {
       let yql = `SELECT * FROM ${tableName}`
 
+      if (options.index) {
+        yql = `${yql} VIEW ${options.index}`
+      }
       if (options.where) {
         yql = `${yql} ${where(options.where)}`
       }
@@ -166,11 +174,12 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   static async findOne<T extends YdbModelType>(
     this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, order?: string } = { },
+    options: { where?: WhereType, order?: string, index?: string } = { },
   ) {
     const out = await YdbModel.find.bind(this)({
       where: options.where,
       order: options.order,
+      index: options.index,
       limit: 1,
     })
 

@@ -59,6 +59,14 @@ test('game', options, async (t, { db }) => {
   await game.increment('turn')
   t.expect(game.turn).toEqual(1)
 
+  // index
+  const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
+  t.expect(gameByIndex).toBeTruthy()
+
+  // count
+  const userCount = await User.count()
+  t.expect(userCount).toBe(2)
+
   // let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
   // t.equal(gameTurnCheck?.turn, 1)
 
