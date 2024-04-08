@@ -70,12 +70,13 @@ export interface YdbModelConstructorType {
   setCtx(ctx: YdbType): void
 
   copy(from: string, to: string): Promise<void>
-  count(options: { where: WhereType, field: string, distinct: boolean }): Promise<number>
+  count(options?: { where?: WhereType, field?: string, distinct: boolean, index?: string }): Promise<number>
   find<T extends YdbModelType>(this: ThisConstructorType<T>, options?: {
-    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string,
+    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string
   }): Promise<Array<T>>
   findByPk<T extends YdbModelType>(this: ThisConstructorType<T>, pk: string): Promise<T | null>
-  findOne<T extends YdbModelType>(this: ThisConstructorType<T>, options: { where?: WhereType, order?: string }): Promise<T | null>
+  findOne<T extends YdbModelType>(this: ThisConstructorType<T>,
+    options: { where?: WhereType, order?: string, index?: string }): Promise<T | null>
   update(fields: FieldsType, options: { where: WhereType }): Promise<void>
 }
 
