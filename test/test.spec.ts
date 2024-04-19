@@ -31,6 +31,7 @@ test('game', options, async (t, { db }) => {
   const game = new Game({
     meta: 'test',
     user: [{ id: user.id, name: user.name }],
+    progress: 0.6667,
   })
   t.teardown(async () => {
     await game.delete()
@@ -52,6 +53,9 @@ test('game', options, async (t, { db }) => {
   const gameCheck = await Game.findOne({ where: { id: game.id } })
 
   t.expect(gameCheck?.toJson()).toEqual(game.toJson())
+
+  // double
+  t.expect(gameCheck?.progress).toEqual(0.6667)
 
   // increment
   t.expect(game.turn).toEqual(0)

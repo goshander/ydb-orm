@@ -14,6 +14,7 @@ const CONVERTER: Converter = {
   [YdbDataType.int64]: (r) => r.int64Value!.toNumber(),
   [YdbDataType.int32]: (r) => r.int32Value! as number,
   [YdbDataType.int8]: (r) => r.int8Value! as number,
+  [YdbDataType.double]: (r) => r.doubleValue! as number,
   [YdbDataType.bool]: (r) => r.boolValue! as boolean,
   [YdbDataType.json]: (r) => JSON.parse(r.textValue!) as JsonType,
 } as const

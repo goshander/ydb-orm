@@ -32,6 +32,7 @@ export const YdbDataType = {
   uint32: Ydb.Type.PrimitiveTypeId.UINT32,
   uint64: Ydb.Type.PrimitiveTypeId.UINT64,
   uint8: Ydb.Type.PrimitiveTypeId.UINT8,
+  double: Ydb.Type.PrimitiveTypeId.DOUBLE,
   bool: Ydb.Type.PrimitiveTypeId.BOOL,
   json: Ydb.Type.PrimitiveTypeId.JSON,
 } as const
@@ -124,6 +125,7 @@ export type RawDataType = {
   int8Value?: number;
   int32Value?: number;
   int64Value?: Long;
+  doubleValue?: number;
   boolValue?: boolean;
   nullFlagValue?: null;
   bytesValue?: Buffer;
