@@ -29,3 +29,6 @@ docker-compose.yml
 *.ts
 !*.d.ts
 tsconfig.json
+tsconfig.eslint.json
+tsconfig.test.json
+bun.lockb
