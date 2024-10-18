@@ -93,6 +93,7 @@ export type YdbOptionType = {
   timeout?: number
   cert?: ISslCredentials
   meta?: boolean
+  singleton?: boolean
 }
 
 export interface YdbModelRegistryType {

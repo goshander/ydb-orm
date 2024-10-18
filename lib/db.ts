@@ -23,14 +23,17 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   logger: BaseLogger
   model: YdbModelRegistryType
 
-  private static _db: YdbType
+  private static _db: YdbType | undefined
 
   static get db() {
-    return Ydb._db
+    if (!this._db) {
+      throw new Error('ydb: singleton db not initialized')
+    }
+    return Ydb._db as YdbType
   }
 
   static init(endpoint: string, database: string, {
-    credential, token, logger, timeout, meta,
+    credential, token, logger, timeout, meta, singleton,
   }: YdbOptionType = {}) {
     let cert
     if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
@@ -44,11 +47,15 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       }
     }
 
-    Ydb._db = new Ydb(endpoint, database, {
+    const db = new Ydb(endpoint, database, {
       credential, token, logger, timeout, cert, meta,
     })
 
-    return Ydb._db
+    if (singleton === undefined || singleton === true) {
+      Ydb._db = db
+    }
+
+    return db
   }
 
   constructor(endpoint: string, database: string, {
