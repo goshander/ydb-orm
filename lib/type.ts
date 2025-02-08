@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
-import Long from 'long'
+import type Long from 'long'
 import type { BaseLogger } from 'pino'
 import { Ydb } from 'ydb-sdk'
 import type {
