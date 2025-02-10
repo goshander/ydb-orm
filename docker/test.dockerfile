@@ -8,8 +8,8 @@ WORKDIR /home/bun/app
 
 COPY --chown=bun:bun package.json ./
 
-COPY --chown=bun:bun bun.lockb ./
+COPY --chown=bun:bun bun.lock ./
 
-RUN bun install
+RUN bun install --frozen-lock-file
 
 COPY --chown=bun:bun . .

@@ -12,6 +12,7 @@ import {
   getSACredentialsFromJson,
 } from 'ydb-sdk'
 
+import { iamTokenRequest, jwt } from './iam'
 import { sync } from './sync'
 import {
   YdbConstructorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbType,
@@ -33,8 +34,10 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     credential, token, logger, timeout, meta,
   }: YdbOptionType = {}) {
     let cert
-    if (fs.existsSync(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))) {
-      credential = getSACredentialsFromJson(path.join(process.cwd(), process.env.YDB_SA_KEY || 'ydb-sa.json'))
+    if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
+      credential = getSACredentialsFromJson(path.join(process.cwd(), 'ydb-sa.json'))
+    } else if (!token && process.env.YDB_SA_KEY) {
+      credential = getSACredentialsFromJson(process.env.YDB_SA_KEY)
     }
     if (process.env.YDB_CERTS) {
       cert = {
@@ -61,6 +64,15 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
     if (credential) {
       authService = new IamAuthService(credential)
+
+      const sendTokenRequest = async () => {
+        const jwtToken = await jwt(credential)
+        const iamResponse = await iamTokenRequest(jwtToken)
+        return iamResponse
+      }
+
+      // @ts-ignore
+      authService.sendTokenRequest = sendTokenRequest
     } else if (token) {
       authService = new TokenAuthService(token)
     } else if (meta) {
