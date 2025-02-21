@@ -21,7 +21,9 @@ type TestBase = {
   expect: typeof bunTest.expect;
   setSystemTime: typeof bunTest.setSystemTime;
   mock: typeof bunTest.mock;
-  teardown: typeof bunTest.afterAll;
+  spyOn: typeof bunTest.spyOn
+  init: typeof bunTest.beforeAll
+  teardown: typeof bunTest.afterAll
 }
 
 export type TestCallback = (t: TestBase, ctx: TestCtx)=> void | Promise<void>
@@ -64,6 +66,8 @@ async function prepare(options?: YdbTestOptions) {
     expect: bunTest.expect,
     setSystemTime: bunTest.setSystemTime,
     mock: bunTest.mock,
+    spyOn: bunTest.spyOn,
+    init: bunTest.beforeAll,
     teardown: bunTest.afterAll,
   }
 
@@ -96,9 +100,22 @@ const baseTest = (args: TestArgs, testFunc: BunTest) => {
   }, options)
 }
 
-export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
-test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
-test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
-test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
-test.if = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.if(cond)))
-test.skipIf = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.skipIf(cond)))
+// @ts-expect-error bun test re-export fix: https://github.com/oven-sh/bun/issues/5400
+const testFunc = (meta: ImportMeta, func?: string) => (func ? Bun.jest(meta.path).test[func] : Bun.jest(meta.path).test)
+
+export const badTest = bunTest
+
+// export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
+export const test = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta))
+// test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
+test.skip = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skip'))
+// test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
+test.todo = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'todo'))
+// test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
+test.only = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'only'))
+// test.if = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.if(cond)))
+test.if = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'if')(cond))
+// test.skipIf = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.skipIf(cond)))
+test.skipIf = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skipIf')(cond))
+
+export const it = test

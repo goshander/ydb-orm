@@ -18,19 +18,19 @@ const options: TestOptions = {
   sync: true,
 }
 
-test('game', options, async (t, { db }) => {
+test(import.meta, 'game', options, async (t, { db }) => {
   const User = db.model.User
   const Game = db.model.Game
 
-  const user = new User({ name: 'test' })
+  const userOne = new User({ name: 'user-one' })
   t.teardown(async () => {
-    await user.delete()
+    await userOne.delete()
   })
-  await user.save()
+  await userOne.save()
 
   const game = new Game({
-    meta: 'test',
-    user: [{ id: user.id, name: user.name }],
+    meta: 'game',
+    user: [{ id: userOne.id, name: userOne.name }],
     progress: 0.6667,
   })
   t.teardown(async () => {
@@ -38,16 +38,13 @@ test('game', options, async (t, { db }) => {
   })
   await game.save()
 
-  const user2 = new User({ name: 'test2' })
+  const userTwo = new User({ name: 'user-two' })
   t.teardown(async () => {
-    await user2.delete()
+    await userTwo.delete()
   })
-  await user2.save()
+  await userTwo.save()
 
-  const users = await User.find()
-  t.expect(users.length).toEqual(2)
-
-  game.user.push({ id: user2.id, name: user2.name })
+  game.user.push({ id: userTwo.id, name: userTwo.name })
   await game.save()
 
   const gameCheck = await Game.findOne({ where: { id: game.id } })
@@ -67,16 +64,12 @@ test('game', options, async (t, { db }) => {
   const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
   t.expect(gameByIndex).toBeTruthy()
 
-  // count
-  const userCount = await User.count()
-  t.expect(userCount).toBe(2)
+  let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+  t.expect(gameTurnCheck?.turn).toEqual(1)
 
-  // let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
-  // t.equal(gameTurnCheck?.turn, 1)
+  await game.increment('turn', { by: 5 })
+  t.expect(game.turn).toEqual(6)
 
-  // await game.increment('turn', { by: 5 })
-  // t.equal(game.turn, 6)
-  // gameTurnCheck = await Game.findOne({ where: { id: game.id } })
-
-  // t.equal(gameTurnCheck?.turn, 6)
+  gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+  t.expect(gameTurnCheck?.turn).toEqual(6)
 })

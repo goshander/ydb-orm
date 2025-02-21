@@ -79,6 +79,7 @@ export interface YdbModelConstructorType {
   findOne<T extends YdbModelType>(this: ThisConstructorType<T>,
     options: { where?: WhereType, order?: string, index?: string }): Promise<T | null>
   update(fields: FieldsType, options: { where: WhereType }): Promise<void>
+  drop(): Promise<void>
 }
 
 export type YdbOptionType = {
