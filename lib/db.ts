@@ -30,8 +30,8 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     return Ydb._db
   }
 
-  static init(endpoint: string, database: string, {
-    credential, token, logger, timeout, meta,
+  static init({
+    endpoint, database, credential, token, logger, timeout, meta,
   }: YdbOptionType = {}) {
     let cert
     if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
@@ -47,15 +47,22 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       }
     }
 
-    Ydb._db = new Ydb(endpoint, database, {
-      credential, token, logger, timeout, cert, meta,
+    Ydb._db = new Ydb({
+      endpoint,
+      database,
+      credential,
+      token,
+      logger,
+      timeout,
+      cert,
+      meta,
     })
 
     return Ydb._db
   }
 
-  constructor(endpoint: string, database: string, {
-    token, credential, logger, timeout, cert, meta,
+  constructor({
+    endpoint, database, token, credential, logger, timeout, cert, meta,
   }: YdbOptionType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()

@@ -38,7 +38,10 @@ type TestArgs = [
 ]
 
 async function prepare(options?: YdbTestOptions) {
-  const db = Ydb.init(process.env.YDB_ENDPOINT || '', process.env.YDB_DATABASE || '', {
+  const db = Ydb.init({
+    endpoint: process.env.YDB_ENDPOINT || '',
+    database: process.env.YDB_DATABASE || '',
+
     timeout: 1000,
   })
 

@@ -29,7 +29,7 @@ You can use the YDB ORM in your Node.js application as follows:
 ```ts
 const { Ydb } = require('ydb-orm');
 
-const db = Ydb.init(endpoint, database, {
+const db = Ydb.init({
   endpoint: process.env.YDB_ENDPOINT,
   database: process.env.YDB_DATABASE,
 
