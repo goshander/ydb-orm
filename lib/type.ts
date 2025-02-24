@@ -94,6 +94,8 @@ export type YdbOptionType = {
     iamEndpoint: string;
   }
 
+  models?: Array<YdbModelConstructorType>
+
   logger?: BaseLogger
   timeout?: number
   cert?: ISslCredentials

@@ -42,13 +42,10 @@ async function prepare(options?: YdbTestOptions) {
     endpoint: process.env.YDB_ENDPOINT || '',
     database: process.env.YDB_DATABASE || '',
 
+    models: options?.models,
+
     timeout: 1000,
   })
-
-  // load models
-  if (options?.models) {
-    options.models.forEach((m) => db.load(m))
-  }
 
   bunTest.afterAll(async () => {
     await db.close()

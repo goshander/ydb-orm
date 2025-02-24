@@ -31,7 +31,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   }
 
   static init({
-    endpoint, database, credential, token, logger, timeout, meta,
+    endpoint, database, models, credential, token, logger, timeout, meta,
   }: YdbOptionType = {}) {
     let cert
     if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
@@ -50,6 +50,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     Ydb._db = new Ydb({
       endpoint,
       database,
+      models,
       credential,
       token,
       logger,
@@ -62,7 +63,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   }
 
   constructor({
-    endpoint, database, token, credential, logger, timeout, cert, meta,
+    endpoint, database, models, token, credential, logger, timeout, cert, meta,
   }: YdbOptionType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()
@@ -96,8 +97,11 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       logger: this.logger,
     })
 
-    // @ts-ignore
     this.model = {}
+
+    if (models) {
+      models.forEach((m) => this.load(m))
+    }
   }
 
   async session(action: (session: Session)=> Promise<unknown>) {

@@ -38,8 +38,9 @@ const db = Ydb.init({
   token, // cloud IAM token
   meta, // metadata service (e.g., from Lambda)
 
-  model: [
-    User, // list of YdbModels to load
+  // optional: list of YdbModels to load
+  models: [
+    User,
   ],
   timeout: 2000,
 });
@@ -61,8 +62,10 @@ app.register(YdbFastify, {
   database: process.env.YDB_DATABASE,
 
   // optional: same authentication options as the library
-  model: [
-    User, // load YdbModels
+
+  // optional: list of YdbModels to load
+  models: [
+    User,
   ],
   timeout: 2000,
 
