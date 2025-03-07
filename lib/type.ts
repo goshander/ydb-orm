@@ -79,9 +79,13 @@ export interface YdbModelConstructorType {
   findOne<T extends YdbModelType>(this: ThisConstructorType<T>,
     options: { where?: WhereType, order?: string, index?: string }): Promise<T | null>
   update(fields: FieldsType, options: { where: WhereType }): Promise<void>
+  drop(): Promise<void>
 }
 
 export type YdbOptionType = {
+  endpoint?: string
+  database?: string
+
   token?: string
   credential?: {
     serviceAccountId: string;
@@ -89,6 +93,9 @@ export type YdbOptionType = {
     privateKey: Buffer;
     iamEndpoint: string;
   }
+
+  models?: Array<YdbModelConstructorType>
+
   logger?: BaseLogger
   timeout?: number
   cert?: ISslCredentials
@@ -113,9 +120,9 @@ export interface YdbType {
 }
 
 export interface YdbConstructorType {
-  new (endpoint: string, database: string, option: YdbOptionType): YdbType;
+  new (option: YdbOptionType): YdbType;
   get db(): YdbType;
-  init: (endpoint: string, database: string, option: YdbOptionType)=> YdbType;
+  init: (option: YdbOptionType)=> YdbType;
 }
 
 export type RawDataType = {

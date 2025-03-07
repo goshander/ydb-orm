@@ -72,6 +72,8 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     await ctx.session(async (session) => {
       const yql = `UPDATE ${tableName} SET ${to} = ${from};`
 
+      // session.prepareQuery()
+
       await session.executeQuery(yql)
     })
   }
@@ -267,5 +269,13 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     })
 
     return json
+  }
+
+  static async drop() {
+    const { ctx, tableName } = this
+
+    await ctx.session(async (session) => {
+      await session.dropTable(tableName)
+    })
   }
 }
