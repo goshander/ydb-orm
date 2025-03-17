@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import type Long from 'long'
-import type { BaseLogger } from 'pino'
+import type { Logger } from 'pino'
 import { Ydb } from 'ydb-sdk'
 import type {
   Driver, ISslCredentials, Session, YdbError,
@@ -85,6 +85,7 @@ export interface YdbModelConstructorType {
 export type YdbOptionType = {
   endpoint?: string
   database?: string
+  connectionString?: string
 
   token?: string
   credential?: {
@@ -96,7 +97,7 @@ export type YdbOptionType = {
 
   models?: Array<YdbModelConstructorType>
 
-  logger?: BaseLogger
+  logger?: Logger
   timeout?: number
   cert?: ISslCredentials
   meta?: boolean
@@ -109,7 +110,7 @@ export interface YdbModelRegistryType {
 export interface YdbType {
   timeout: number
   driver: Driver
-  logger: BaseLogger
+  logger: Logger
   model: YdbModelRegistryType
 
   session(action: (session: Session)=> Promise<unknown>): Promise<unknown>

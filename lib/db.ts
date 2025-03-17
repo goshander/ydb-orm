@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-import pino, { BaseLogger } from 'pino'
+import pino, { Logger } from 'pino'
 import {
   AnonymousAuthService,
   Driver,
@@ -21,7 +21,7 @@ import {
 export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   timeout: number = 10000
   driver: Driver
-  logger: BaseLogger
+  logger: Logger
   model: YdbModelRegistryType
 
   private static _db: YdbType
@@ -31,7 +31,9 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   }
 
   static init({
-    endpoint, database, models, credential, token, logger, timeout, meta,
+    token,
+    credential,
+    ...params
   }: YdbOptionType = {}) {
     let cert
     if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
@@ -48,21 +50,17 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     }
 
     Ydb._db = new Ydb({
-      endpoint,
-      database,
-      models,
-      credential,
       token,
-      logger,
-      timeout,
+      credential,
       cert,
-      meta,
+      ...params,
     })
 
     return Ydb._db
   }
 
   constructor({
+    connectionString,
     endpoint, database, models, token, credential, logger, timeout, cert, meta,
   }: YdbOptionType) {
     if (timeout) this.timeout = timeout
@@ -89,9 +87,21 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       authService = new AnonymousAuthService()
     }
 
+    // fix connection string for new format
+    let connectionStringFixed = connectionString || ''
+    if (!connectionString && endpoint) {
+      connectionStringFixed = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint
+    }
+    if (!connectionString && database) {
+      connectionStringFixed = database.startsWith('/')
+        ? `${connectionStringFixed}?database=${database}`
+        : `${connectionStringFixed}?database=/${database}`
+    }
+    connectionStringFixed = connectionStringFixed.startsWith('grpc') ? connectionStringFixed : `grpcs://${connectionStringFixed}`
+    connectionStringFixed = connectionStringFixed.replace('/?database=', '?database=')
+
     this.driver = new Driver({
-      endpoint,
-      database,
+      connectionString: connectionStringFixed,
       authService,
       sslCredentials: cert,
       logger: this.logger,
