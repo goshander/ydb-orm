@@ -11,7 +11,7 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -24,10 +24,10 @@
     "build-test": "rm -rf ./dist && tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@yandex-cloud/nodejs-sdk": "2.7.7",
+    "@yandex-cloud/nodejs-sdk": "2.8.0",
     "jose": "^5.9.0",
-    "pino": "^8.19.0",
-    "ydb-sdk": "5.8.0"
+    "pino": "^9.6.0",
+    "ydb-sdk": "5.9.1"
   },
   "devDependencies": {
     "@types/bun": "^1.0.12",
@@ -45,5 +45,10 @@
     "ts-node": "^10.9.1",
     "tslib": "^2.6.0",
     "typescript": "^5.1.6"
+  },
+  "overrides": {
+    "@yandex-cloud/nodejs-sdk": {
+      "axios": "1.8.3"
+    }
   }
 }

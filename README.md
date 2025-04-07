@@ -30,8 +30,9 @@ You can use the YDB ORM in your Node.js application as follows:
 const { Ydb } = require('ydb-orm');
 
 const db = Ydb.init({
-  endpoint: process.env.YDB_ENDPOINT,
-  database: process.env.YDB_DATABASE,
+  // [deprecated] endpoint: process.env.YDB_ENDPOINT,
+  // [deprecated] database: process.env.YDB_DATABASE,
+  connectionString: process.env.YDB_CONNECTION_STRING,
 
   // optional: authentication method
   credential, // service account credential
@@ -58,8 +59,9 @@ Install fastify plugin with: `npm i fastify-ydb-orm`
 const { YdbFastify } = require('fastify-ydb-orm');
 
 app.register(YdbFastify, {
-  endpoint: process.env.YDB_ENDPOINT,
-  database: process.env.YDB_DATABASE,
+  // [deprecated] endpoint: process.env.YDB_ENDPOINT,
+  // [deprecated] database: process.env.YDB_DATABASE,
+  connectionString: process.env.YDB_CONNECTION_STRING,
 
   // optional: same authentication options as the library
 
