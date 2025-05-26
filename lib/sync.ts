@@ -3,8 +3,6 @@ import {
   AlterTableDescription,
   Column,
   Session,
-  TableDescription,
-  TableIndex,
   Ydb,
 } from 'ydb-sdk'
 
@@ -32,12 +30,14 @@ const exportFieldType = (fieldType: YdbDataTypeId | YdbDataTypeWithOption) => {
 }
 
 const createTable = async (
-  session: Session,
+  session: any,
   {
     tableName, schema, primaryKey, logger,
   }: { tableName: string, schema: YdbSchemaFieldType, primaryKey: string, logger: BaseLogger },
 ) => {
-  let tableDesc = new TableDescription()
+  // Создаем SQL DDL для создания таблицы
+  const columns: string[] = []
+  const indexes: string[] = []
 
   Object.entries(schema).forEach(([field, fieldTypeData]) => {
     const fieldType = exportFieldType(fieldTypeData)
@@ -45,20 +45,61 @@ const createTable = async (
     if (fieldType.type == null) return
     if (fieldType.drop) return
 
-    tableDesc = tableDesc.withColumn(new Column(
-      field,
-      Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
-    ))
+    // Преобразуем тип YDB в SQL тип
+    let sqlType = 'UTF8'
+    switch (fieldType.type) {
+    case Ydb.Type.PrimitiveTypeId.UTF8:
+      sqlType = 'UTF8'
+      break
+    case Ydb.Type.PrimitiveTypeId.STRING:
+      sqlType = 'STRING'
+      break
+    case Ydb.Type.PrimitiveTypeId.INT32:
+      sqlType = 'INT32'
+      break
+    case Ydb.Type.PrimitiveTypeId.INT64:
+      sqlType = 'INT64'
+      break
+    case Ydb.Type.PrimitiveTypeId.UINT32:
+      sqlType = 'UINT32'
+      break
+    case Ydb.Type.PrimitiveTypeId.UINT64:
+      sqlType = 'UINT64'
+      break
+    case Ydb.Type.PrimitiveTypeId.BOOL:
+      sqlType = 'BOOL'
+      break
+    case Ydb.Type.PrimitiveTypeId.DOUBLE:
+      sqlType = 'DOUBLE'
+      break
+    case Ydb.Type.PrimitiveTypeId.TIMESTAMP:
+      sqlType = 'TIMESTAMP'
+      break
+    case Ydb.Type.PrimitiveTypeId.JSON:
+      sqlType = 'JSON'
+      break
+    default:
+      sqlType = 'UTF8'
+    }
+
+    columns.push(`${field} ${sqlType}`)
 
     if (fieldType.index) {
-      tableDesc = tableDesc.withIndex(new TableIndex(`index_${tableName}_${field}`).withIndexColumns(field))
+      indexes.push(`INDEX index_${tableName}_${field} GLOBAL ON (${field})`)
     }
   })
 
-  tableDesc = tableDesc.withPrimaryKey(primaryKey)
+  const createTableSQL = `
+    CREATE TABLE ${tableName} (
+      ${columns.join(',\n      ')},
+      PRIMARY KEY (${primaryKey})
+    )${indexes.length > 0 ? `\n    WITH (${indexes.join(',\n    ')})` : ''}`
 
   logger.info({ msg: 'ydb: create table', table: tableName })
-  await session.createTable(tableName, tableDesc)
+
+  // Используем QueryClient для выполнения DDL
+  const query = session`${createTableSQL}`
+  await query
 }
 
 const alterTable = async (
@@ -170,7 +211,10 @@ export const sync = async (ctx: YdbType) => {
       let tableStructure: RawTableStructure | undefined
 
       try {
-        tableStructure = await session.describeTable(model.tableName)
+        // Используем SQL запрос для проверки существования таблицы
+        const query = session`DESCRIBE TABLE ${session.identifier(model.tableName)};`
+        const [result] = await query
+        tableStructure = result as any // Временное решение
       } catch {
         ctx.logger.info({ msg: 'ydb: table not found', table: model.tableName })
       }

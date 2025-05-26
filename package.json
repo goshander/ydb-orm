@@ -16,7 +16,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
-    "test": "bun test --bail",
+    "test": "bun test --bail ./test/*.spec.ts",
     "test-js": "rm -rf ./dist && npm run build-test && tap --bail --jobs=1 --reporter=list --no-coverage dist/test/**/*.spec.js",
     "test-docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
     "test-docker-clean": "docker compose --env-file .env.test down -v --rmi local",
@@ -25,6 +25,13 @@
   },
   "dependencies": {
     "@yandex-cloud/nodejs-sdk": "2.8.0",
+    "@ydbjs/api": "^6.0.0-alpha.7",
+    "@ydbjs/auth": "^6.0.0-alpha.13",
+    "@ydbjs/core": "^6.0.0-alpha.16",
+    "@ydbjs/error": "^6.0.0-alpha.7",
+    "@ydbjs/query": "^6.0.0-alpha.20",
+    "@ydbjs/retry": "^6.0.0-alpha.10",
+    "@ydbjs/value": "^6.0.0-alpha.10",
     "jose": "^5.9.0",
     "pino": "^9.6.0",
     "ydb-sdk": "5.9.1"

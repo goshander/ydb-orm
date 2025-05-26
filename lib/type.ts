@@ -1,10 +1,18 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+// Временный тип для QueryClient до установки новых пакетов
+import type { SecureContextOptions } from 'tls'
+
+import type {
+  Driver,
+} from '@ydbjs/core'
+import type {
+  YDBError,
+} from '@ydbjs/error'
 import type Long from 'long'
 import type { Logger } from 'pino'
 import { Ydb } from 'ydb-sdk'
-import type {
-  Driver, ISslCredentials, Session, YdbError,
-} from 'ydb-sdk'
+
+type QueryClient = any
 
 export type BaseType = boolean | number | string | null
 export type FieldType = BaseType | Date
@@ -99,7 +107,7 @@ export type YdbOptionType = {
 
   logger?: Logger
   timeout?: number
-  cert?: ISslCredentials
+  ssl?: SecureContextOptions
   meta?: boolean
 }
 
@@ -112,8 +120,9 @@ export interface YdbType {
   driver: Driver
   logger: Logger
   model: YdbModelRegistryType
+  queryClient: QueryClient
 
-  session(action: (session: Session)=> Promise<unknown>): Promise<unknown>
+  session(action: (queryClient: QueryClient)=> Promise<unknown>): Promise<unknown>
   connect(): Promise<void>
   close(): Promise<void>
   sync(): Promise<void>
@@ -164,4 +173,4 @@ export type YdbResultType = {
   rows: Array<{ items: Array<RawDataType> }>
 }
 
-export type YdbErrorType = YdbError
+export type YdbErrorType = YDBError

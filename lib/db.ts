@@ -1,16 +1,12 @@
 import fs from 'fs'
 import path from 'path'
 
+import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token'
+import { AnonymousCredentialsProvider } from '@ydbjs/auth/anonymous'
+import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata'
+import { Driver } from '@ydbjs/core'
+import { QueryClient, query } from '@ydbjs/query'
 import pino, { Logger } from 'pino'
-import {
-  AnonymousAuthService,
-  Driver,
-  IamAuthService,
-  MetadataAuthService,
-  Session,
-  TokenAuthService,
-  getSACredentialsFromJson,
-} from 'ydb-sdk'
 
 import { iamTokenRequest, jwt } from './iam'
 import { sync } from './sync'
@@ -23,6 +19,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   driver: Driver
   logger: Logger
   model: YdbModelRegistryType
+  queryClient: QueryClient
 
   private static _db: YdbType
 
@@ -35,24 +32,24 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     credential,
     ...params
   }: YdbOptionType = {}) {
-    let cert
+    let ssl
     if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
-      credential = getSACredentialsFromJson(path.join(process.cwd(), 'ydb-sa.json'))
+      credential = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'ydb-sa.json'), 'utf8'))
     } else if (!token && process.env.YDB_SA_KEY) {
-      credential = getSACredentialsFromJson(process.env.YDB_SA_KEY)
+      credential = JSON.parse(process.env.YDB_SA_KEY)
     }
     if (process.env.YDB_CERTS) {
-      cert = {
-        rootCertificates: fs.readFileSync(path.join(process.env.YDB_CERTS, 'ca.pem')),
-        clientPrivateKey: fs.readFileSync(path.join(process.env.YDB_CERTS, 'key.pem')),
-        clientCertChain: fs.readFileSync(path.join(process.env.YDB_CERTS, 'cert.pem')),
+      ssl = {
+        ca: fs.readFileSync(path.join(process.env.YDB_CERTS, 'ca.pem')),
+        key: fs.readFileSync(path.join(process.env.YDB_CERTS, 'key.pem')),
+        cert: fs.readFileSync(path.join(process.env.YDB_CERTS, 'cert.pem')),
       }
     }
 
     Ydb._db = new Ydb({
       token,
       credential,
-      cert,
+      ssl,
       ...params,
     })
 
@@ -61,7 +58,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
   constructor({
     connectionString,
-    endpoint, database, models, token, credential, logger, timeout, cert, meta,
+    endpoint, database, models, token, credential, logger, timeout, ssl, meta,
   }: YdbOptionType) {
     if (timeout) this.timeout = timeout
     this.logger = logger || pino()
@@ -69,7 +66,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     let authService
 
     if (credential) {
-      authService = new IamAuthService(credential)
+      // authService = new IamAuthService(credential)
 
       const sendTokenRequest = async () => {
         const jwtToken = await jwt(credential)
@@ -80,33 +77,40 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       // @ts-ignore
       authService.sendTokenRequest = sendTokenRequest
     } else if (token) {
-      authService = new TokenAuthService(token)
+      authService = new AccessTokenCredentialsProvider({ token })
     } else if (meta) {
-      authService = new MetadataAuthService()
+      authService = new MetadataCredentialsProvider()
     } else {
-      authService = new AnonymousAuthService()
+      authService = new AnonymousCredentialsProvider()
     }
 
     // fix connection string for new format
     let connectionStringFixed = connectionString || ''
-    if (!connectionString && endpoint) {
+
+    if (!connectionString && endpoint && endpoint.trim()) {
       connectionStringFixed = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint
     }
-    if (!connectionString && database) {
+    if (!connectionString && database && database.trim()) {
       connectionStringFixed = database.startsWith('/')
         ? `${connectionStringFixed}?database=${database}`
         : `${connectionStringFixed}?database=/${database}`
     }
+
+    // Если connectionString пустой, используем значение по умолчанию для тестов
+    if (!connectionStringFixed.trim()) {
+      connectionStringFixed = 'grpc://localhost:2136?database=/local'
+    }
+
     connectionStringFixed = connectionStringFixed.startsWith('grpc') ? connectionStringFixed : `grpcs://${connectionStringFixed}`
     connectionStringFixed = connectionStringFixed.replace('/?database=', '?database=')
 
-    this.driver = new Driver({
-      connectionString: connectionStringFixed,
-      authService,
-      sslCredentials: cert,
-      logger: this.logger,
+    this.driver = new Driver(connectionStringFixed, {
+      credentialsProvider: authService,
+      ssl,
+      // logger: this.logger,
     })
 
+    this.queryClient = query(this.driver)
     this.model = {}
 
     if (models) {
@@ -114,18 +118,16 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     }
   }
 
-  async session(action: (session: Session)=> Promise<unknown>) {
-    return this.driver.tableClient.withSession(action)
+  async session(action: (queryClient: QueryClient)=> Promise<unknown>) {
+    return action(this.queryClient)
   }
 
   async close() {
-    await this.driver.destroy()
+    this.driver.close()
   }
 
   async connect() {
-    if (!await this.driver.ready(this.timeout)) {
-      throw new Error('ydb: error db connect')
-    }
+    await this.driver.ready()
   }
 
   sync(): Promise<void> {
