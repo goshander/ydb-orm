@@ -17,7 +17,7 @@ module.exports = {
     'arrow-parens': ['error', 'always'],
     'linebreak-style': ['error', 'unix'],
     'operator-linebreak': ['error', 'before'],
-    'no-underscore-dangle': ['error', { allow: ['_id', '_db', '_primaryKey', '_ctx', '_tableName', '_'] }],
+    'no-underscore-dangle': ['error', { allow: ['_id', '_db', '_driver', '_client', '_query', '_timeout', '_primaryKey', '_ctx', '_tableName','_api', '_'] }],
     radix: ['error', 'as-needed'],
     'sort-imports': ['error', { ignoreDeclarationSort: true }],
     'no-debugger': 'error',
