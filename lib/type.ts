@@ -1,20 +1,19 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
-// Временный тип для QueryClient до установки новых пакетов
 import type { SecureContextOptions } from 'tls'
 
 import type {
-  Driver,
-} from '@ydbjs/core'
-import type {
   YDBError,
 } from '@ydbjs/error'
+import type {
+  JSValue,
+} from '@ydbjs/value'
 import type Long from 'long'
 import type { Logger } from 'pino'
-import { Ydb } from 'ydb-sdk'
 
-type QueryClient = any
+import type { YdbApi } from './api'
+import { type DATA_TYPE_ID_MAP, DATA_TYPE_KEY_MAP } from './constant'
 
-export type BaseType = boolean | number | string | null
+export type BaseType = boolean | number | bigint | string | null
 export type FieldType = BaseType | Date
 export type ArrayType = Array<FieldType>
 export type JsonType =
@@ -28,27 +27,15 @@ export type LikeType = { like: PrimitiveType }
 export type WhereType = Record<string, PrimitiveType | LikeType>
 export type FieldsType = Record<string, PrimitiveType>
 
-export const YdbDataType = {
-  date: Ydb.Type.PrimitiveTypeId.TIMESTAMP,
-  string: Ydb.Type.PrimitiveTypeId.UTF8,
-  ascii: Ydb.Type.PrimitiveTypeId.STRING,
-  int: Ydb.Type.PrimitiveTypeId.INT32,
-  int32: Ydb.Type.PrimitiveTypeId.INT32,
-  int64: Ydb.Type.PrimitiveTypeId.INT64,
-  int8: Ydb.Type.PrimitiveTypeId.INT8,
-  uint: Ydb.Type.PrimitiveTypeId.UINT32,
-  uint32: Ydb.Type.PrimitiveTypeId.UINT32,
-  uint64: Ydb.Type.PrimitiveTypeId.UINT64,
-  uint8: Ydb.Type.PrimitiveTypeId.UINT8,
-  double: Ydb.Type.PrimitiveTypeId.DOUBLE,
-  bool: Ydb.Type.PrimitiveTypeId.BOOL,
-  json: Ydb.Type.PrimitiveTypeId.JSON,
-} as const
-export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
-export type YdbDataTypeWithOption = { type: YdbDataTypeId, index?: boolean, drop?: boolean, renamed?: string }
-export type YdbSchemaFieldType = Record<string, YdbDataTypeId | YdbDataTypeWithOption>
+export const YdbDataType = DATA_TYPE_KEY_MAP
+export type YdbDataTypeType = typeof YdbDataType
+export type YdbDataTypeKey = typeof DATA_TYPE_KEY_MAP[keyof YdbDataTypeType]
+export type YdbDataTypeId = typeof DATA_TYPE_ID_MAP[keyof YdbDataTypeType]
+export type YdbDataTypeWithOption = { type: YdbDataTypeKey, index?: boolean, drop?: boolean, renamed?: string }
+export type YdbSchemaFieldType = Record<string, YdbDataTypeKey | YdbDataTypeWithOption>
 export type YdbSchemaOptionType = { tableName?: string; primaryKey?: string, strict?: boolean }
 export type YdbSchemaType = YdbSchemaFieldType | { field: YdbSchemaFieldType, option?: YdbSchemaOptionType }
+export type YdbQueryResult = Array<FieldsType>
 
 export interface YdbModelType {
   model: YdbModelConstructorType
@@ -79,7 +66,7 @@ export interface YdbModelConstructorType {
   setCtx(ctx: YdbType): void
 
   copy(from: string, to: string): Promise<void>
-  count(options?: { where?: WhereType, field?: string, distinct: boolean, index?: string }): Promise<number>
+  count(options?: { where?: WhereType, field?: string, distinct: boolean, index?: string }): Promise<bigint>
   find<T extends YdbModelType>(this: ThisConstructorType<T>, options?: {
     where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string
   }): Promise<Array<T>>
@@ -116,17 +103,16 @@ export interface YdbModelRegistryType {
 }
 
 export interface YdbType {
-  timeout: number
-  driver: Driver
   logger: Logger
   model: YdbModelRegistryType
-  queryClient: QueryClient
 
-  session(action: (queryClient: QueryClient)=> Promise<unknown>): Promise<unknown>
+  session(action: (queryClient: any)=> Promise<unknown>): Promise<unknown>
+  sql(sql: string, params?: Record<string, JSValue>): Promise<YdbQueryResult>
   connect(): Promise<void>
   close(): Promise<void>
   sync(): Promise<void>
   load(model: YdbModelConstructorType): void
+  api(): YdbApi
 }
 
 export interface YdbConstructorType {

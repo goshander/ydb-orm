@@ -37,7 +37,8 @@ test(import.meta, 'user', options, async (t, { db }) => {
 
   // Подсчет с prepared queries
   const userCount = await User.count()
-  t.expect(userCount).toBe(2)
+  // COUNT returns BigInt in new YDB SDK
+  t.expect(userCount).toBe(2n)
 
   // Обновление с prepared queries
   userOne.name = 'user-check'
@@ -96,7 +97,7 @@ test(import.meta, 'user', options, async (t, { db }) => {
     },
     distinct: false,
   })
-  t.expect(activeUsersCount).toBe(1)
+  t.expect(activeUsersCount).toBe(1n)
 
   // Тест инкремента (если есть числовое поле)
   // Предполагаем, что в модели User есть поле score
