@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "lib": [
-      "es2017"
+      "es2022"
     ],
     "types": [
       "bun-types",
       "long",
     ],
-    "target": "es2017",
-    "moduleResolution": "node16",
-    "module": "node16",
+    "target": "es2022",
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
     "outDir": "dist",
     "alwaysStrict": true,
     "declaration": true,

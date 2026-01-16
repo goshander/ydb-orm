@@ -16,7 +16,7 @@ import { SCHEMA_REJECTED_FIELD } from './constant'
 import { IamCredentialsProvider } from './iam'
 import { sync } from './sync'
 import {
-  YdbConstructorType, YdbErrorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbType,
+  YdbConstructorType, YdbErrorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbQueryResult, YdbType,
 } from './type'
 
 export const Ydb: YdbConstructorType = class Ydb implements YdbType {
@@ -146,7 +146,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     // execute query and return first result set
     try {
       const result = await query
-      return result[0]
+      return result[0] as YdbQueryResult
     } catch (error) {
       const ydbError = error as YdbErrorType
       if (ydbError?.issues?.[0]) {
@@ -188,12 +188,12 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
   check(model: YdbModelConstructorType) {
     if (model.tableName.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-      this.logger.error('ydb: invalid table name', { table: model.tableName, mode: model.className })
+      this.logger.error({ table: model.tableName, mode: model.className }, 'ydb: invalid table name')
       throw new Error(`ydb: invalid table name [${model.tableName}] in model [${model.className}]`)
     }
 
     if (model.primaryKey.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-      this.logger.error('ydb: invalid primary key', { key: model.primaryKey, mode: model.className })
+      this.logger.error({ key: model.primaryKey, mode: model.className }, 'ydb: invalid primary key')
       throw new Error(`ydb: invalid primary key [${model.primaryKey}] in model [${model.className}]`)
     }
 
@@ -203,12 +203,12 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       const schemaKey = schemaKeys[i]
 
       if (schemaKey.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-        this.logger.error('ydb: invalid schema key', { field: schemaKey, mode: model.className })
+        this.logger.error({ field: schemaKey, mode: model.className }, 'ydb: invalid schema key')
         throw new Error(`ydb: invalid schema key [${schemaKey}] in model [${model.className}]`)
       }
 
       if (SCHEMA_REJECTED_FIELD.includes(schemaKey)) {
-        this.logger.error('ydb: rejected schema key', { field: schemaKey, mode: model.className })
+        this.logger.error({ field: schemaKey, mode: model.className }, 'ydb: rejected schema key')
         throw new Error(`ydb: rejected schema key [${schemaKey}] in model [${model.className}]`)
       }
     }

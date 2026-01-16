@@ -1,2 +1,89 @@
-export const SCHEMA_REJECTED_FIELD = ['ctx', 'model', 'schema', 'field', 'primaryKey', 'className', 'tableName']
 export const DEFAULT_PRIMARY_KEY = 'id' as const
+
+export const SCHEMA_REJECTED_FIELD = [
+  'ctx',
+  'model',
+  'schema',
+  'field',
+  'primaryKey',
+  'className',
+  'tableName',
+]
+
+export const DATA_TYPE_KEY_MAP = {
+  date: 'Timestamp',
+  string: 'Utf8',
+  ascii: 'String',
+  int: 'Int32',
+  int32: 'Int32',
+  int64: 'Int64',
+  int8: 'Int8',
+  uint: 'Uint32',
+  uint32: 'Uint32',
+  uint64: 'Uint64',
+  uint8: 'Uint8',
+  double: 'Double',
+  bool: 'Bool',
+  json: 'Json',
+} as const
+
+export const PRIMITIVE_TYPE_ID = {
+  PRIMITIVE_TYPE_ID_UNSPECIFIED: 0,
+  BOOL: 6,
+  INT8: 7,
+  UINT8: 5,
+  INT16: 8,
+  UINT16: 9,
+  INT32: 1,
+  UINT32: 2,
+  INT64: 3,
+  UINT64: 4,
+  FLOAT: 33,
+  DOUBLE: 32,
+  DATE: 48,
+  DATETIME: 49,
+  TIMESTAMP: 50,
+  INTERVAL: 51,
+  TZ_DATE: 52,
+  TZ_DATETIME: 53,
+  TZ_TIMESTAMP: 54,
+  STRING: 4097,
+  UTF8: 4608,
+  YSON: 4609,
+  JSON: 4610,
+  UUID: 4611,
+  JSON_DOCUMENT: 4612,
+  DYNUMBER: 4866,
+} as const
+
+export const DATA_TYPE_ID_MAP = {
+  date: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  string: PRIMITIVE_TYPE_ID.UTF8,
+  ascii: PRIMITIVE_TYPE_ID.STRING,
+  int: PRIMITIVE_TYPE_ID.INT32,
+  int32: PRIMITIVE_TYPE_ID.INT32,
+  int64: PRIMITIVE_TYPE_ID.INT64,
+  int8: PRIMITIVE_TYPE_ID.INT8,
+  uint: PRIMITIVE_TYPE_ID.UINT32,
+  uint32: PRIMITIVE_TYPE_ID.UINT32,
+  uint64: PRIMITIVE_TYPE_ID.UINT64,
+  uint8: PRIMITIVE_TYPE_ID.UINT8,
+  double: PRIMITIVE_TYPE_ID.DOUBLE,
+  bool: PRIMITIVE_TYPE_ID.BOOL,
+  json: PRIMITIVE_TYPE_ID.JSON,
+} as const
+
+export const DATA_TYPE_KEY_TO_ID_MAP = {
+  [DATA_TYPE_KEY_MAP.date]: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  [DATA_TYPE_KEY_MAP.string]: PRIMITIVE_TYPE_ID.UTF8,
+  [DATA_TYPE_KEY_MAP.ascii]: PRIMITIVE_TYPE_ID.STRING,
+  [DATA_TYPE_KEY_MAP.int32]: PRIMITIVE_TYPE_ID.INT32,
+  [DATA_TYPE_KEY_MAP.int64]: PRIMITIVE_TYPE_ID.INT64,
+  [DATA_TYPE_KEY_MAP.int8]: PRIMITIVE_TYPE_ID.INT8,
+  [DATA_TYPE_KEY_MAP.uint32]: PRIMITIVE_TYPE_ID.UINT32,
+  [DATA_TYPE_KEY_MAP.uint64]: PRIMITIVE_TYPE_ID.UINT64,
+  [DATA_TYPE_KEY_MAP.uint8]: PRIMITIVE_TYPE_ID.UINT8,
+  [DATA_TYPE_KEY_MAP.double]: PRIMITIVE_TYPE_ID.DOUBLE,
+  [DATA_TYPE_KEY_MAP.bool]: PRIMITIVE_TYPE_ID.BOOL,
+  [DATA_TYPE_KEY_MAP.json]: PRIMITIVE_TYPE_ID.JSON,
+} as const
