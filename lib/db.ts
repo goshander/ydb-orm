@@ -7,15 +7,17 @@ import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token'
 import { AnonymousCredentialsProvider } from '@ydbjs/auth/anonymous'
 import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata'
 import { Driver } from '@ydbjs/core'
-import { QueryClient, query as ydbQuery } from '@ydbjs/query'
-import { JSValue, fromJs } from '@ydbjs/value'
-import pino, { Logger } from 'pino'
+import { type QueryClient, query as ydbQuery } from '@ydbjs/query'
+import {
+  type JSValue, fromJs,
+} from '@ydbjs/value'
+import pino, { type Logger } from 'pino'
 
-import { YdbApi, api } from './api'
+import { type YdbApi, api } from './api'
 import { SCHEMA_REJECTED_FIELD } from './constant'
 import { IamCredentialsProvider } from './iam'
 import { sync } from './sync'
-import {
+import type {
   YdbConstructorType, YdbErrorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbQueryResult, YdbType,
 } from './type'
 
@@ -146,6 +148,21 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     // execute query and return first result set
     try {
       const result = await query
+
+      // parse result not needed, except ascii type (String) from Buffer
+      // const queryResult: YdbQueryResult = []
+
+      // result[0].forEach((row: unknown) => {
+      //   const value = row as Record<string, Value>
+      //   const parsedRow: Record<string, PrimitiveType> = {}
+
+      //   Object.keys(value).forEach((key) => {
+      //     parsedRow[key] = toJs(value[key]) as PrimitiveType
+      //   })
+
+      //   queryResult.push(parsedRow)
+      // })
+
       return result[0] as YdbQueryResult
     } catch (error) {
       const ydbError = error as YdbErrorType

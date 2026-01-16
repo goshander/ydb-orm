@@ -12,6 +12,8 @@ export const SCHEMA_REJECTED_FIELD = [
 
 export const DATA_TYPE_KEY_MAP = {
   date: 'Timestamp',
+  date32: 'Timestamp',
+  date64: 'Timestamp64',
   string: 'Utf8',
   ascii: 'String',
   int: 'Int32',
@@ -42,7 +44,9 @@ export const PRIMITIVE_TYPE_ID = {
   DOUBLE: 32,
   DATE: 48,
   DATETIME: 49,
+  DATETIME64: 65,
   TIMESTAMP: 50,
+  TIMESTAMP64: 66,
   INTERVAL: 51,
   TZ_DATE: 52,
   TZ_DATETIME: 53,
@@ -58,6 +62,8 @@ export const PRIMITIVE_TYPE_ID = {
 
 export const DATA_TYPE_ID_MAP = {
   date: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  date32: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  date64: PRIMITIVE_TYPE_ID.TIMESTAMP64,
   string: PRIMITIVE_TYPE_ID.UTF8,
   ascii: PRIMITIVE_TYPE_ID.STRING,
   int: PRIMITIVE_TYPE_ID.INT32,
@@ -74,7 +80,8 @@ export const DATA_TYPE_ID_MAP = {
 } as const
 
 export const DATA_TYPE_KEY_TO_ID_MAP = {
-  [DATA_TYPE_KEY_MAP.date]: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  [DATA_TYPE_KEY_MAP.date32]: PRIMITIVE_TYPE_ID.TIMESTAMP,
+  [DATA_TYPE_KEY_MAP.date64]: PRIMITIVE_TYPE_ID.TIMESTAMP64,
   [DATA_TYPE_KEY_MAP.string]: PRIMITIVE_TYPE_ID.UTF8,
   [DATA_TYPE_KEY_MAP.ascii]: PRIMITIVE_TYPE_ID.STRING,
   [DATA_TYPE_KEY_MAP.int32]: PRIMITIVE_TYPE_ID.INT32,
