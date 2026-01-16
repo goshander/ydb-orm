@@ -13,7 +13,7 @@ import type { Logger } from 'pino'
 import type { YdbApi } from './api'
 import { type DATA_TYPE_ID_MAP, DATA_TYPE_KEY_MAP } from './constant'
 
-export type BaseType = boolean | number | bigint | string | null
+export type BaseType = boolean | number | bigint | string | Buffer | null
 export type FieldType = BaseType | Date
 export type ArrayType = Array<FieldType>
 export type JsonType =
