@@ -1,46 +1,12 @@
+/** biome-ignore-all lint/complexity/noThisInStatic: constructor or instance as expected */
 import { fromJs } from '@ydbjs/value'
 
 import { DEFAULT_PRIMARY_KEY } from './constant'
-import {
+import type {
   PrimitiveType, WhereType, YdbModelConstructorType, YdbModelType,
   YdbSchemaFieldType, YdbSchemaOptionType, YdbSchemaType, YdbType,
 } from './type'
-
-// Функция для создания WHERE условий с параметрами
-const buildWhereClause = (whereConditions: WhereType, paramPrefix: string = 'where') => {
-  const conditions: string[] = []
-  const params: Record<string, any> = {}
-  let paramIndex = 0
-
-  Object.keys(whereConditions).forEach((field) => {
-    const condition = whereConditions[field]
-
-    if (Array.isArray(condition)) {
-      // IN условие
-      const paramName = `$${paramPrefix}_${field}_${paramIndex}`
-      paramIndex += 1
-      conditions.push(`${field} IN ${paramName}`)
-      params[paramName] = fromJs(condition)
-    } else if (typeof condition === 'object' && condition !== null && 'like' in condition) {
-      // LIKE условие
-      const paramName = `$${paramPrefix}_${field}_${paramIndex}`
-      paramIndex += 1
-      conditions.push(`${field} LIKE ${paramName}`)
-      params[paramName] = fromJs(`%${condition.like}%`)
-    } else {
-      // Обычное равенство
-      const paramName = `$${paramPrefix}_${field}_${paramIndex}`
-      paramIndex += 1
-      conditions.push(`${field} = ${paramName}`)
-      params[paramName] = fromJs(condition)
-    }
-  })
-
-  return {
-    clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
-    params,
-  }
-}
+import { where } from './where'
 
 export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbModelType {
   [field: string]: unknown
@@ -104,8 +70,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     const { ctx, tableName } = this
 
     await ctx.session(async (queryClient) => {
-      const query = queryClient`UPDATE ${queryClient.identifier(tableName)}
-        SET ${queryClient.identifier(to)} = ${queryClient.identifier(from)};`
+      const query = queryClient([`UPDATE ${tableName} SET ${to} = ${from};`] as any)
       await query
     })
   }
@@ -130,7 +95,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       const params: Record<string, any> = {}
 
       if (options?.where) {
-        const { clause, params: whereParams } = buildWhereClause(options.where)
+        const { clause, params: whereParams } = where(options.where)
         queryText = `${queryText} ${clause}`
         Object.assign(params, whereParams)
       }
@@ -138,7 +103,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       queryText = `${queryText};`
 
       // Создаем запрос с параметрами
-      let query = queryClient`${queryText}`
+      let query = queryClient([queryText] as any)
 
       // Добавляем параметры
       Object.keys(params).forEach((paramName) => {
@@ -149,7 +114,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       return resultSet
     })
 
-    return (result as any).count as number
+    return (result as any).count as bigint
   }
 
   static async find<T extends YdbModelType>(
@@ -168,7 +133,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       const params: Record<string, any> = {}
 
       if (options.where) {
-        const { clause, params: whereParams } = buildWhereClause(options.where)
+        const { clause, params: whereParams } = where(options.where)
         queryText = `${queryText} ${clause}`
         Object.assign(params, whereParams)
       }
@@ -189,7 +154,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       queryText = `${queryText};`
 
       // Создаем запрос с параметрами
-      let query = queryClient`${queryText}`
+      let query = queryClient([queryText] as any)
 
       // Добавляем параметры
       Object.keys(params).forEach((paramName) => {
@@ -249,12 +214,12 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
         setParams[`$${paramName}`] = fromJs(data[column])
       })
 
-      const { clause: whereClause, params: whereParams } = buildWhereClause(options.where, 'update')
+      const { clause: whereClause, params: whereParams } = where(options.where)
 
       const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
 
       // Создаем запрос с параметрами
-      let query = queryClient`${queryText}`
+      let query = queryClient([queryText] as any)
 
       // Добавляем все параметры
       const allParams = { ...setParams, ...whereParams }
@@ -272,12 +237,8 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     const { ctx, tableName } = this.model
 
     await ctx.session(async (queryClient) => {
-      // Получаем описание таблицы для определения колонок
-      const describeQuery = queryClient`DESCRIBE TABLE ${queryClient.identifier(tableName)};`
-      await describeQuery
-
-      // Извлекаем имена колонок (это упрощенная версия, в реальности нужно парсить результат)
-      const columns = Object.keys(this.model.fields)
+      const schema = this.model.fields
+      const columns = Object.keys(schema)
 
       const params: Record<string, any> = {}
       const paramNames: string[] = []
@@ -290,14 +251,17 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
       const queryText = `UPSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${paramNames.join(', ')});`
 
-      // Создаем запрос с параметрами
-      let query = queryClient`${queryText}`
+      // Build query properly
+      const strings: any = [queryText]
+      strings.raw = [queryText]
+      let query = queryClient(strings).timeout(ctx.timeout || 10000)
 
-      // Добавляем параметры
+      // Add parameters
       Object.keys(params).forEach((paramName) => {
         query = query.param(paramName.replace('$', ''), params[paramName])
       })
 
+      // Execute the query
       await query
     })
     return this
@@ -305,42 +269,31 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   async delete() {
     const { ctx, primaryKey, tableName } = this.model
+    const pKeyValue = this[primaryKey] as PrimitiveType
 
-    await ctx.session(async (queryClient) => {
-      const keyParam = fromJs(this[primaryKey] as string)
-
-      const query = queryClient`DELETE FROM ${queryClient.identifier(tableName)} WHERE ${queryClient.identifier(primaryKey)} = $key;`
-        .param('key', keyParam)
-
-      await query
+    await ctx.sql(`DELETE FROM ${tableName} WHERE ${primaryKey} = $primaryKey;`, {
+      primaryKey: pKeyValue,
     })
   }
 
   async increment(field: string, options: { by?: number } = {}) {
     const { ctx, primaryKey, tableName } = this.model
+    const pKeyValue = this[primaryKey] as PrimitiveType
 
-    const result = await ctx.session(async (queryClient) => {
-      const keyParam = fromJs(this[primaryKey] as string)
-      const incBy = options.by || 1
-
-      const updateQuery = queryClient`UPDATE ${queryClient.identifier(tableName)}
-        SET ${queryClient.identifier(field)} = ${queryClient.identifier(field)} + $incBy
-        WHERE ${queryClient.identifier(primaryKey)} = $key;`
-        .param('incBy', fromJs(incBy))
-        .param('key', keyParam)
-
-      await updateQuery
-
-      const selectQuery = queryClient`SELECT ${queryClient.identifier(field)}
-        FROM ${queryClient.identifier(tableName)}
-        WHERE ${queryClient.identifier(primaryKey)} = $key;`
-        .param('key', keyParam)
-
-      const [resultSet] = await selectQuery
-      return resultSet[0]
+    await ctx.sql(`UPDATE ${tableName}
+        SET ${field} = ${field} + $incBy
+        WHERE ${primaryKey} = $primaryKey;`, {
+      primaryKey: pKeyValue,
+      incBy: options.by || 1,
     })
 
-    this[field] = (result as any)[field]
+    const result = await ctx.sql(`SELECT ${field}
+        FROM ${tableName}
+        WHERE ${primaryKey} = $primaryKey;`, {
+      primaryKey: pKeyValue,
+    })
+
+    this[field] = result[0][field]
   }
 
   toJson() {
@@ -354,10 +307,6 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   static async drop() {
     const { ctx, tableName } = this
-
-    await ctx.session(async (queryClient) => {
-      const query = queryClient`DROP TABLE ${queryClient.identifier(tableName)};`
-      await query
-    })
+    await ctx.sql(`DROP TABLE ${tableName};`)
   }
 }
