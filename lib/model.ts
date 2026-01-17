@@ -1,6 +1,4 @@
 /** biome-ignore-all lint/complexity/noThisInStatic: constructor or instance as expected */
-import { fromJs } from '@ydbjs/value'
-
 import { DEFAULT_PRIMARY_KEY } from './constant'
 import type {
   PrimitiveType, WhereType, YdbModelConstructorType, YdbModelType,
@@ -69,10 +67,7 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static async copy(from: string, to: string) {
     const { ctx, tableName } = this
 
-    await ctx.session(async (queryClient) => {
-      const query = queryClient([`UPDATE ${tableName} SET ${to} = ${from};`] as any)
-      await query
-    })
+    await ctx.sql(`UPDATE ${tableName} SET ${to} = ${from};`)
   }
 
   static async count(options:
@@ -80,41 +75,30 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   = { distinct: false }) {
     const { ctx, primaryKey, tableName } = this
 
-    const result = await ctx.session(async (queryClient) => {
-      let cField = options?.field
-      if (cField === undefined) cField = primaryKey
+    let cField = options?.field
+    if (cField === undefined) cField = primaryKey
 
-      if (options?.distinct) cField = `DISTINCT ${cField}`
+    if (options?.distinct) cField = `DISTINCT ${cField}`
 
-      let queryText = `SELECT COUNT(${cField}) as count FROM ${tableName}`
+    let queryText = `SELECT COUNT(${cField}) as count FROM ${tableName}`
 
-      if (options?.index) {
-        queryText = `${queryText} VIEW ${options.index}`
-      }
+    if (options?.index) {
+      queryText = `${queryText} VIEW ${options.index}`
+    }
 
-      const params: Record<string, any> = {}
+    const params: Record<string, PrimitiveType> = {}
 
-      if (options?.where) {
-        const { clause, params: whereParams } = where(options.where)
-        queryText = `${queryText} ${clause}`
-        Object.assign(params, whereParams)
-      }
+    if (options?.where) {
+      const { clause, params: whereParams } = where(options.where)
+      queryText = `${queryText} ${clause}`
+      Object.assign(params, whereParams)
+    }
 
-      queryText = `${queryText};`
+    queryText = `${queryText};`
 
-      // Создаем запрос с параметрами
-      let query = queryClient([queryText] as any)
+    const result = await ctx.sql(queryText, params)
 
-      // Добавляем параметры
-      Object.keys(params).forEach((paramName) => {
-        query = query.param(paramName.replace('$', ''), params[paramName])
-      })
-
-      const [[resultSet]] = await query
-      return resultSet
-    })
-
-    return (result as any).count as bigint
+    return result[0].count as bigint
   }
 
   static async find<T extends YdbModelType>(
@@ -123,47 +107,36 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   ) {
     const { ctx, tableName, fields } = this as unknown as YdbModelConstructorType
 
-    const result = await ctx.session(async (queryClient) => {
-      let queryText = `SELECT * FROM ${tableName}`
+    let queryText = `SELECT * FROM ${tableName}`
 
-      if (options.index) {
-        queryText = `${queryText} VIEW ${options.index}`
-      }
+    if (options.index) {
+      queryText = `${queryText} VIEW ${options.index}`
+    }
 
-      const params: Record<string, any> = {}
+    const params: Record<string, PrimitiveType> = {}
 
-      if (options.where) {
-        const { clause, params: whereParams } = where(options.where)
-        queryText = `${queryText} ${clause}`
-        Object.assign(params, whereParams)
-      }
+    if (options.where) {
+      const { clause, params: whereParams } = where(options.where)
+      queryText = `${queryText} ${clause}`
+      Object.assign(params, whereParams)
+    }
 
-      if (options.order && fields[options.order]) {
-        queryText = `${queryText} ORDER BY ${options.order} DESC`
-      }
-      if (options.limit) {
-        queryText = `${queryText} LIMIT ${options.limit}`
-      }
-      if (options.offset) {
-        queryText = `${queryText} OFFSET ${options.offset}`
-      }
-      if (options.page && options.limit && !options.offset) {
-        queryText = `${queryText} OFFSET ${(options.page - 1) * options.limit}`
-      }
+    if (options.order && fields[options.order]) {
+      queryText = `${queryText} ORDER BY ${options.order} DESC`
+    }
+    if (options.limit) {
+      queryText = `${queryText} LIMIT ${options.limit}`
+    }
+    if (options.offset) {
+      queryText = `${queryText} OFFSET ${options.offset}`
+    }
+    if (options.page && options.limit && !options.offset) {
+      queryText = `${queryText} OFFSET ${(options.page - 1) * options.limit}`
+    }
 
-      queryText = `${queryText};`
+    queryText = `${queryText};`
 
-      // Создаем запрос с параметрами
-      let query = queryClient([queryText] as any)
-
-      // Добавляем параметры
-      Object.keys(params).forEach((paramName) => {
-        query = query.param(paramName.replace('$', ''), params[paramName])
-      })
-
-      const [resultSet] = await query
-      return resultSet
-    })
+    const result = await ctx.sql(queryText, params)
 
     const out: Array<T> = [];
     (result as any[]).forEach((row: any) => {
@@ -203,32 +176,24 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static async update(data: Record<string, PrimitiveType>, options: { where: WhereType }) {
     const { ctx, tableName } = this
 
-    await ctx.session(async (queryClient) => {
-      const setParams: Record<string, any> = {}
-      const setClauses: string[] = []
+    const setParams: Record<string, PrimitiveType> = {}
+    const setClauses: string[] = []
 
-      // Создаем SET часть с параметрами
-      Object.keys(data).forEach((column, index) => {
-        const paramName = `set_${column}_${index}`
-        setClauses.push(`${column} = $${paramName}`)
-        setParams[`$${paramName}`] = fromJs(data[column])
-      })
-
-      const { clause: whereClause, params: whereParams } = where(options.where)
-
-      const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
-
-      // Создаем запрос с параметрами
-      let query = queryClient([queryText] as any)
-
-      // Добавляем все параметры
-      const allParams = { ...setParams, ...whereParams }
-      Object.keys(allParams).forEach((paramName) => {
-        query = query.param(paramName.replace('$', ''), allParams[paramName])
-      })
-
-      await query
+    // Создаем SET часть с параметрами
+    Object.keys(data).forEach((column, index) => {
+      const paramName = `set_${column}_${index}`
+      setClauses.push(`${column} = $${paramName}`)
+      setParams[paramName] = data[column]
     })
+
+    const { clause: whereClause, params: whereParams } = where(options.where, 'update')
+
+    const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
+
+    // Объединяем все параметры
+    const allParams = { ...setParams, ...whereParams }
+
+    await ctx.sql(queryText, allParams)
   }
 
   get model() { return (this.constructor as YdbModelConstructorType) }
@@ -236,34 +201,22 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   async save() {
     const { ctx, tableName } = this.model
 
-    await ctx.session(async (queryClient) => {
-      const schema = this.model.fields
-      const columns = Object.keys(schema)
+    const schema = this.model.fields
+    const columns = Object.keys(schema)
 
-      const params: Record<string, any> = {}
-      const paramNames: string[] = []
+    const params: Record<string, PrimitiveType> = {}
+    const paramNames: string[] = []
 
-      columns.forEach((column, index) => {
-        const paramName = `param_${index}`
-        paramNames.push(`$${paramName}`)
-        params[`$${paramName}`] = fromJs(this[column] as PrimitiveType)
-      })
-
-      const queryText = `UPSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${paramNames.join(', ')});`
-
-      // Build query properly
-      const strings: any = [queryText]
-      strings.raw = [queryText]
-      let query = queryClient(strings).timeout(ctx.timeout || 10000)
-
-      // Add parameters
-      Object.keys(params).forEach((paramName) => {
-        query = query.param(paramName.replace('$', ''), params[paramName])
-      })
-
-      // Execute the query
-      await query
+    columns.forEach((column, index) => {
+      const paramName = `param_${index}`
+      paramNames.push(`$${paramName}`)
+      params[paramName] = this[column] as PrimitiveType
     })
+
+    const queryText = `UPSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${paramNames.join(', ')});`
+
+    await ctx.sql(queryText, params)
+
     return this
   }
 
