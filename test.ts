@@ -1,8 +1,8 @@
 import bunTest from 'bun:test'
-import { BaseLogger } from 'pino'
+import pino, { type BaseLogger } from 'pino'
 
 import {
-  Ydb, YdbModelConstructorType, YdbType,
+  Ydb, type YdbModelConstructorType, type YdbType,
 } from '.'
 
 type YdbTestOptions = {
@@ -38,6 +38,13 @@ type TestArgs = [
 ]
 
 async function prepare(options?: YdbTestOptions) {
+  const logger = pino({
+    transport: {
+      target: 'pino-pretty',
+    },
+    level: 'debug',
+  })
+
   const db = Ydb.init({
     endpoint: process.env.YDB_ENDPOINT || '',
     database: process.env.YDB_DATABASE || '',
@@ -45,6 +52,8 @@ async function prepare(options?: YdbTestOptions) {
     models: options?.models,
 
     timeout: 1000,
+    logger,
+    debug: process.env.YDB_DEBUG === '1' || process.env.YDB_DEBUG === 'true',
   })
 
   bunTest.afterAll(async () => {
@@ -59,7 +68,7 @@ async function prepare(options?: YdbTestOptions) {
 
   const ctx: TestCtx = {
     db,
-    logger: db.logger,
+    logger,
   }
 
   const test: TestBase = {

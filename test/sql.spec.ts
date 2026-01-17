@@ -32,8 +32,8 @@ test(import.meta, 'sql - create and drop test table', options, async (t, { db })
       id String,
       name Utf8,
       age Int32,
-      created_at Timestamp,
-      is_active Bool,
+      createdAt Timestamp,
+      isActive Bool,
       PRIMARY KEY (id)
     );
   `)
@@ -214,8 +214,8 @@ test(import.meta, 'sql - different data types', options, async (t, { db }) => {
       name Utf8,
       age Int32,
       score Int64,
-      is_active Bool,
-      created_at Timestamp,
+      isActive Bool,
+      createdAt Timestamp,
       PRIMARY KEY (id)
     );
   `)
@@ -227,15 +227,15 @@ test(import.meta, 'sql - different data types', options, async (t, { db }) => {
 
   // insert with different data types
   await db.sql(
-    `UPSERT INTO ${tableName} (id, name, age, score, is_active, created_at)
-     VALUES ($id, $name, $age, $score, $is_active, $created_at);`,
+    `UPSERT INTO ${tableName} (id, name, age, score, isActive, createdAt)
+     VALUES ($id, $name, $age, $score, $isActive, $createdAt);`,
     {
       id: userId,
       name: 'user-one',
       age: 30,
       score: 1000000,
-      is_active: true,
-      created_at: now,
+      isActive: true,
+      createdAt: now,
     },
   )
 
@@ -248,9 +248,9 @@ test(import.meta, 'sql - different data types', options, async (t, { db }) => {
   t.expect(result.length).toBe(1)
   t.expect(result[0].name).toBe('user-one')
   t.expect(result[0].age).toBe(30)
-  t.expect(result[0].is_active).toBe(true)
-  t.expect(result[0].created_at).toBeInstanceOf(Date)
-  t.expect((result[0].created_at as Date).getTime()).toBe(now.getTime())
+  t.expect(result[0].isActive).toBe(true)
+  t.expect(result[0].createdAt).toBeInstanceOf(Date)
+  t.expect((result[0].createdAt as Date).getTime()).toBe(now.getTime())
 })
 
 test(import.meta, 'sql - update with parameters', options, async (t, { db }) => {
@@ -453,4 +453,36 @@ test(import.meta, 'sql - complex query with multiple operations', options, async
   t.expect(result[0].score).toBe(50) // highest score first
   t.expect(result[1].score).toBe(40)
   t.expect(result[2].score).toBe(30)
+})
+
+test.only(import.meta, 'sql - json field', options, async (t, { db }) => {
+  const tableName = generateTableName()
+
+  t.teardown(async () => {
+    await db.sql(`DROP TABLE ${tableName};`)
+  })
+
+  // create table (no data)
+  await db.sql(`
+    CREATE TABLE ${tableName} (
+      id String,
+      data Json,
+      PRIMARY KEY (id)
+    );
+  `)
+
+  // insert json data
+  await db.sql(
+    `UPSERT INTO ${tableName} (id, data) VALUES ($id, $data);`,
+    { id: nanoid(), data: { field: 'value' } },
+  )
+
+  // select json data
+  const result = await db.sql(
+    `SELECT * FROM ${tableName};`,
+  )
+
+  t.expect(Array.isArray(result)).toBe(true)
+  t.expect(result.length).toBe(1)
+  t.expect(result[0].data).toEqual({ field: 'value' })
 })

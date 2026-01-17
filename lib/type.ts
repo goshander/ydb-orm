@@ -8,7 +8,7 @@ import type {
   JSValue,
 } from '@ydbjs/value'
 import type Long from 'long'
-import type { Logger } from 'pino'
+import type { BaseLogger } from 'pino'
 
 import type { YdbApi } from './api'
 import { type DATA_TYPE_ID_MAP, DATA_TYPE_KEY_MAP } from './constant'
@@ -92,10 +92,12 @@ export type YdbOptionType = {
 
   models?: Array<YdbModelConstructorType>
 
-  logger?: Logger
+  logger?: BaseLogger
   timeout?: number
   ssl?: SecureContextOptions
   meta?: boolean
+
+  debug?: boolean
 }
 
 export interface YdbModelRegistryType {
@@ -103,16 +105,17 @@ export interface YdbModelRegistryType {
 }
 
 export interface YdbType {
-  logger: Logger
+  logger: BaseLogger
   model: YdbModelRegistryType
 
-  session(action: (queryClient: any)=> Promise<unknown>): Promise<unknown>
   sql(sql: string, params?: Record<string, JSValue>): Promise<YdbQueryResult>
   connect(): Promise<void>
   close(): Promise<void>
   sync(): Promise<void>
   load(model: YdbModelConstructorType): void
   api(): YdbApi
+
+  debug: boolean
 }
 
 export interface YdbConstructorType {

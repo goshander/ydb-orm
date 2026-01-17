@@ -59,6 +59,6 @@ export class Game extends YdbModel implements Fields {
     this.status = status || 'init'
     this.turn = turn || 0
     this.progress = progress || 0
-    this.createdAt = createdAt || new Date()
+    this.createdAt = createdAt || (() => { const d = new Date(); d.setMilliseconds(0); return d })()
   }
 }

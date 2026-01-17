@@ -26,6 +26,6 @@ export class User extends YdbModel implements Fields {
     const { name, id, createdAt } = fields
     this.id = id || nanoid()
     this.name = name || ''
-    this.createdAt = createdAt || new Date()
+    this.createdAt = createdAt || (() => { const d = new Date(); d.setMilliseconds(0); return d })()
   }
 }

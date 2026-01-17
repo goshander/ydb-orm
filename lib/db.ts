@@ -9,9 +9,10 @@ import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata'
 import { Driver } from '@ydbjs/core'
 import { type QueryClient, query as ydbQuery } from '@ydbjs/query'
 import {
-  type JSValue, fromJs,
+  type JSValue, type Type, type Value, fromJs,
 } from '@ydbjs/value'
-import pino, { type Logger } from 'pino'
+import { Json } from '@ydbjs/value/primitive'
+import pino, { type BaseLogger } from 'pino'
 
 import { type YdbApi, api } from './api'
 import { SCHEMA_REJECTED_FIELD } from './constant'
@@ -29,7 +30,8 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   private _api: YdbApi | null = null
 
   model: YdbModelRegistryType
-  logger: Logger
+  logger: BaseLogger
+  debug: boolean = false
 
   get timeout() { return this._timeout }
 
@@ -72,7 +74,7 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
   constructor({
     connectionString,
-    endpoint, database, models, token, credential, logger, timeout, ssl, meta,
+    endpoint, database, models, token, credential, logger, timeout, ssl, meta, debug,
   }: YdbOptionType) {
     if (timeout) this._timeout = timeout
     this.logger = logger || pino()
@@ -123,6 +125,10 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
         this.load(models[i])
       }
     }
+
+    if (debug !== undefined) {
+      this.debug = debug
+    }
   }
 
   async sql(sql: string, params?: Record<string, JSValue>) {
@@ -136,10 +142,21 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
         // wrap value with fromJs
         const value = params[paramName]
-        const wrappedValue = fromJs(value)
+        let wrappedValue: JSValue | Value<Type>
+
+        // fix for json fields
+        if ((!!value) && (value.constructor === Array || value.constructor === Object) && !paramName.startsWith('where_')) {
+          wrappedValue = new Json(JSON.stringify(value))
+        } else {
+          wrappedValue = fromJs(value)
+        }
 
         query = query.param(cleanName, wrappedValue)
       })
+    }
+
+    if (this.debug) {
+      this.logger.debug({ sql, params }, 'ydb: [DEBUG] sql query')
     }
 
     // execute query and return first result set
@@ -149,12 +166,15 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       // parse result not needed, except ascii type (String) from Buffer
       // const queryResult: YdbQueryResult = []
 
-      // result[0].forEach((row: unknown) => {
-      //   const value = row as Record<string, Value>
+      // result[0].forEach((row) => {
       //   const parsedRow: Record<string, PrimitiveType> = {}
 
-      //   Object.keys(value).forEach((key) => {
-      //     parsedRow[key] = toJs(value[key]) as PrimitiveType
+      //   Object.keys(row).forEach((key) => {
+      //     if (fields[key] === YdbDataType.ascii) {
+      //       parsedRow[key] = (row[key] as Buffer).toString('utf8')
+      //     } else {
+      //       parsedRow[key] = row[key]
+      //     }
       //   })
 
       //   queryResult.push(parsedRow)
