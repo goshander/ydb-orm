@@ -1,15 +1,8 @@
-import type { BaseLogger } from 'pino'
-import {
-  AlterTableDescription,
-  Column,
-  Session,
-  Ydb,
-} from 'ydb-sdk'
-
-import { SCHEMA_REJECTED_FIELD } from './constant'
-import {
+import { DATA_TYPE_KEY_TO_ID_MAP } from './constant'
+import type {
   YdbColumnType,
   YdbDataTypeId,
+  YdbDataTypeKey,
   YdbDataTypeWithOption,
   YdbIndexType,
   YdbModelConstructorType,
@@ -18,26 +11,24 @@ import {
   YdbType,
 } from './type'
 
-type RawTableStructure = Awaited<ReturnType<Session['describeTable']>>
 type TableStructure = Record<string, YdbDataTypeId>
 type IndexStructure = Record<string, string>
 
-const exportFieldType = (fieldType: YdbDataTypeId | YdbDataTypeWithOption) => {
+const exportFieldType = (fieldType: YdbDataTypeKey | YdbDataTypeWithOption): YdbDataTypeWithOption => {
   if ((fieldType as YdbDataTypeWithOption).type) {
     return fieldType as YdbDataTypeWithOption
   }
-  return { type: fieldType as YdbDataTypeId } as YdbDataTypeWithOption
+  return { type: fieldType as YdbDataTypeKey }
 }
 
 const createTable = async (
-  session: any,
+  ctx: YdbType,
   {
-    tableName, schema, primaryKey, logger,
-  }: { tableName: string, schema: YdbSchemaFieldType, primaryKey: string, logger: BaseLogger },
+    tableName, schema, primaryKey,
+  }: { tableName: string, schema: YdbSchemaFieldType, primaryKey: string },
 ) => {
-  // Создаем SQL DDL для создания таблицы
   const columns: string[] = []
-  const indexes: string[] = []
+  const indexes: Array<{ name: string, field: string }> = []
 
   Object.entries(schema).forEach(([field, fieldTypeData]) => {
     const fieldType = exportFieldType(fieldTypeData)
@@ -45,65 +36,40 @@ const createTable = async (
     if (fieldType.type == null) return
     if (fieldType.drop) return
 
-    // Преобразуем тип YDB в SQL тип
-    let sqlType = 'UTF8'
-    switch (fieldType.type) {
-    case Ydb.Type.PrimitiveTypeId.UTF8:
-      sqlType = 'UTF8'
-      break
-    case Ydb.Type.PrimitiveTypeId.STRING:
-      sqlType = 'STRING'
-      break
-    case Ydb.Type.PrimitiveTypeId.INT32:
-      sqlType = 'INT32'
-      break
-    case Ydb.Type.PrimitiveTypeId.INT64:
-      sqlType = 'INT64'
-      break
-    case Ydb.Type.PrimitiveTypeId.UINT32:
-      sqlType = 'UINT32'
-      break
-    case Ydb.Type.PrimitiveTypeId.UINT64:
-      sqlType = 'UINT64'
-      break
-    case Ydb.Type.PrimitiveTypeId.BOOL:
-      sqlType = 'BOOL'
-      break
-    case Ydb.Type.PrimitiveTypeId.DOUBLE:
-      sqlType = 'DOUBLE'
-      break
-    case Ydb.Type.PrimitiveTypeId.TIMESTAMP:
-      sqlType = 'TIMESTAMP'
-      break
-    case Ydb.Type.PrimitiveTypeId.JSON:
-      sqlType = 'JSON'
-      break
-    default:
-      sqlType = 'UTF8'
-    }
-
-    columns.push(`${field} ${sqlType}`)
+    columns.push(`${field} ${fieldType.type}`)
 
     if (fieldType.index) {
-      indexes.push(`INDEX index_${tableName}_${field} GLOBAL ON (${field})`)
+      indexes.push({ name: `index_${tableName}_${field}`, field })
     }
   })
 
-  const createTableSQL = `
-    CREATE TABLE ${tableName} (
-      ${columns.join(',\n      ')},
-      PRIMARY KEY (${primaryKey})
-    )${indexes.length > 0 ? `\n    WITH (${indexes.join(',\n    ')})` : ''}`
+  const createTableSql = `CREATE TABLE ${tableName} (${columns.join(', ')}, PRIMARY KEY (${primaryKey}));`
 
-  logger.info({ msg: 'ydb: create table', table: tableName })
+  ctx.logger.info({ table: tableName }, 'ydb: create table')
 
-  // Используем QueryClient для выполнения DDL
-  const query = session`${createTableSQL}`
-  await query
+  try {
+    await ctx.sql(createTableSql)
+  } catch (error) {
+    ctx.logger.error({ table: tableName, error }, 'ydb: error creating table')
+    throw error
+  }
+
+  // Create indexes
+  for (let i = 0; i < indexes.length; i += 1) {
+    const index = indexes[i]
+    const createIndexSql = `ALTER TABLE ${tableName} ADD INDEX ${index.name} GLOBAL ON (${index.field});`
+
+    try {
+      await ctx.sql(createIndexSql)
+      ctx.logger.info({ table: tableName, index: index.name }, 'ydb: create index')
+    } catch (error) {
+      ctx.logger.error({ table: tableName, index: index.name, error }, 'ydb: error creating index')
+    }
+  }
 }
 
 const alterTable = async (
-  session: Session,
+  ctx: YdbType,
   {
     tableName,
     schema,
@@ -111,171 +77,225 @@ const alterTable = async (
     model,
     table,
     indexes,
-    logger,
   }: {
     tableName: string,
     schema: YdbSchemaFieldType,
     option: YdbSchemaOptionType,
     table: TableStructure,
     indexes: IndexStructure,
-    logger: BaseLogger,
     model: YdbModelConstructorType,
   },
 ) => {
-  let tableDesc = new AlterTableDescription()
-  let alter = false
-
   const renamed: Record<string, YdbDataTypeWithOption> = {}
 
-  Object.entries(schema)
-    .forEach(([field, fieldTypeData]) => {
-      const fieldType = exportFieldType(fieldTypeData)
+  for (const [field, fieldTypeData] of Object.entries(schema)) {
+    const fieldType = exportFieldType(fieldTypeData)
 
-      if (fieldType.type == null) return
+    if (fieldType.type == null) continue
 
-      if (fieldType.renamed && table[field] == null) {
-        renamed[fieldType.renamed] = fieldType
-        delete table[field]
-        return
-      }
+    // Handle renamed fields
+    if (fieldType.renamed && table[field] == null) {
+      renamed[fieldType.renamed] = fieldType
+      delete table[field]
+      continue
+    }
 
-      if (fieldType.drop) {
-        tableDesc = tableDesc.withDropColumn(field)
-
+    // Handle drop fields
+    if (fieldType.drop) {
+      if (table[field]) {
+        // Drop index if exists
         if (indexes[field]) {
-          if (!tableDesc.dropIndexes) {
-            tableDesc.dropIndexes = []
+          try {
+            await ctx.sql(`ALTER TABLE ${tableName} DROP INDEX ${indexes[field]};`)
+            ctx.logger.info({ table: tableName, index: indexes[field] }, 'ydb: drop index')
+          } catch (error) {
+            ctx.logger.error({ table: tableName, index: indexes[field], error }, 'ydb: error dropping index')
           }
-          tableDesc.dropIndexes.push(indexes[field])
         }
 
-        alter = true
+        // Drop column
+        try {
+          await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${field};`)
+          ctx.logger.info({ table: tableName, field }, 'ydb: drop column')
+        } catch (error) {
+          ctx.logger.error({ table: tableName, field, error }, 'ydb: error dropping column')
+        }
+
         delete table[field]
-        return
+      }
+      continue
+    }
+
+    const typeId = DATA_TYPE_KEY_TO_ID_MAP[fieldType.type]
+    if (!typeId) {
+      ctx.logger.error({ field, type: fieldType.type }, 'ydb: unknown field type')
+      continue
+    }
+
+    // Add new field
+    if (!table[field]) {
+      try {
+        await ctx.sql(`ALTER TABLE ${tableName} ADD COLUMN ${field} ${fieldType.type};`)
+        ctx.logger.info({ table: tableName, field }, 'ydb: add column')
+      } catch (error) {
+        ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding column')
       }
 
-      if (!table[field]) {
-        tableDesc = tableDesc.withAddColumn(new Column(
-          field,
-          Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
-        ))
-        alter = true
-        return
+      // Add index if needed
+      if (fieldType.index && !indexes[field]) {
+        try {
+          await ctx.sql(`ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`)
+          ctx.logger.info({ table: tableName, field }, 'ydb: add index')
+        } catch (error) {
+          ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding index')
+        }
       }
 
-      if (table[field] !== fieldType.type) {
-        tableDesc = tableDesc.withAlterColumn(new Column(
-          field,
-          Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
-        ))
-        alter = true
+      continue
+    }
+
+    // Check if type changed
+    if (table[field] !== typeId) {
+      ctx.logger.warn({ field, oldType: table[field], newType: typeId }, 'ydb: type change detected, manual migration may be needed')
+    }
+
+    // Add/drop index
+    if (fieldType.index && !indexes[field]) {
+      try {
+        await ctx.sql(`ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`)
+        ctx.logger.info({ table: tableName, field }, 'ydb: add index')
+      } catch (error) {
+        ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding index')
       }
+    } else if (!fieldType.index && indexes[field]) {
+      try {
+        await ctx.sql(`ALTER TABLE ${tableName} DROP INDEX ${indexes[field]};`)
+        ctx.logger.info({ table: tableName, index: indexes[field] }, 'ydb: drop index')
+      } catch (error) {
+        ctx.logger.error({ table: tableName, index: indexes[field], error }, 'ydb: error dropping index')
+      }
+    }
 
-      if (option.strict) delete table[field]
-    })
+    if (option.strict) delete table[field]
+  }
 
+  // Strict mode: drop fields not in schema
   if (option.strict) {
-    Object.keys(table).forEach((field) => {
-      tableDesc = tableDesc.withDropColumn(field)
-      alter = true
-    })
+    for (const field of Object.keys(table)) {
+      try {
+        await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${field};`)
+        ctx.logger.info({ table: tableName, field }, 'ydb: drop column (strict mode)')
+      } catch (error) {
+        ctx.logger.error({ table: tableName, field, error }, 'ydb: error dropping column')
+      }
+    }
   }
 
-  if (alter) {
-    await session.alterTable(tableName, tableDesc)
-    logger.info({ msg: 'ydb: alter table', table: tableName })
-  }
-
-  // move column
+  // Handle renamed fields (copy data)
   const renamedFields = Object.entries(renamed)
 
   for (let i = 0; i < renamedFields.length; i += 1) {
-    const [field, fieldType] = renamedFields[i]
-    await session.alterTable(tableName, new AlterTableDescription().withAddColumn(new Column(
-      field,
-      Ydb.Type.create({ optionalType: { item: { typeId: fieldType.type } } }),
-    )))
+    const [newField, fieldType] = renamedFields[i]
+    const oldField = fieldType.renamed!
 
-    await model.copy(fieldType.renamed!, field)
+    try {
+      // Add new column
+      await ctx.sql(`ALTER TABLE ${tableName} ADD COLUMN ${newField} ${fieldType.type};`)
+
+      // Copy data from old column to new column
+      await model.copy(oldField, newField)
+
+      // Drop old column
+      await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${oldField};`)
+
+      ctx.logger.info({ table: tableName, from: oldField, to: newField }, 'ydb: renamed field')
+    } catch (error) {
+      ctx.logger.error({
+        table: tableName, from: oldField, to: newField, error,
+      }, 'ydb: error renaming field')
+    }
   }
 }
 
 export const sync = async (ctx: YdbType) => {
   const models = Object.values(ctx.model)
+  const api = ctx.api()
 
-  await ctx.session(async (session) => {
-    for (let i = 0; i < models.length; i += 1) {
-      const model = models[i]
+  for (let i = 0; i < models.length; i += 1) {
+    const model = models[i]
 
-      const tableName: string = model.tableName
-      let tableStructure: RawTableStructure | undefined
+    const tableName: string = model.tableName
+    let tableExists = false
 
-      try {
-        // Используем SQL запрос для проверки существования таблицы
-        const query = session`DESCRIBE TABLE ${session.identifier(model.tableName)};`
-        const [result] = await query
-        tableStructure = result as any // Временное решение
-      } catch {
-        ctx.logger.info({ msg: 'ydb: table not found', table: model.tableName })
-      }
+    try {
+      await ctx.sql(`SELECT 1 AS check FROM ${tableName} LIMIT 1;`)
+      tableExists = true
+    } catch {
+      ctx.logger.info({ table: model.tableName }, 'ydb: table not found')
+    }
 
-      let schema: YdbSchemaFieldType
-      let option: YdbSchemaOptionType = {}
+    let schema: YdbSchemaFieldType
+    let option: YdbSchemaOptionType = {}
 
-      if (model.schema.field) {
-        schema = model.schema.field as YdbSchemaFieldType
-        const schemaOption = model.schema.option as YdbSchemaOptionType | undefined
-        if (schemaOption) { option = schemaOption }
-      } else {
-        schema = model.schema as YdbSchemaFieldType
-      }
+    if (model.schema.field) {
+      schema = model.schema.field as YdbSchemaFieldType
+      const schemaOption = model.schema.option as YdbSchemaOptionType | undefined
+      if (schemaOption) { option = schemaOption }
+    } else {
+      schema = model.schema as YdbSchemaFieldType
+    }
 
-      const schemaFields = Object.keys(schema)
-      for (let j = 0; j < schemaFields.length; j += 1) {
-        if (SCHEMA_REJECTED_FIELD.includes(schemaFields[i])) {
-          throw new Error(`ydb: schema rejected field \`${schemaFields[j]}\` detected at table \`${tableName}\``)
-        }
-      }
-
-      // table not exist
-      if (tableStructure === undefined) {
-        await createTable(session, {
-          tableName,
-          schema,
-          primaryKey: model.primaryKey,
-          logger: ctx.logger,
-        })
-        continue
-      }
-
-      const table: TableStructure = {}
-      const indexes: IndexStructure = {}
-
-      const tableColumns = tableStructure.columns as Array<YdbColumnType>
-      const tableIndexes = tableStructure.indexes as Array<YdbIndexType>
-
-      tableIndexes.forEach((index) => {
-        if (index.name && index.indexColumns && index.indexColumns[0]) {
-          indexes[index.indexColumns[0]] = index.name
-        }
-      })
-
-      tableColumns.forEach((col) => {
-        const typeId = col?.type?.optionalType?.item?.typeId
-        if (col.name && typeId) {
-          table[col.name] = typeId
-        }
-      })
-
-      await alterTable(session, {
+    // Table doesn't exist - create it
+    if (!tableExists) {
+      await createTable(ctx, {
         tableName,
         schema,
-        option,
-        model,
-        table,
-        indexes,
-        logger: ctx.logger,
+        primaryKey: model.primaryKey,
       })
+      continue
     }
-  })
+
+    // Table exists - check if alteration is needed
+    const tableStructure = await api.describeTable(tableName)
+
+    const table: TableStructure = {}
+    const indexes: IndexStructure = {}
+
+    const tableColumns = (tableStructure?.columns || []) as Array<YdbColumnType>
+    const tableIndexes = (tableStructure?.indexes || []) as Array<YdbIndexType>
+
+    tableIndexes.forEach((index) => {
+      if (index.name && index.indexColumns && index.indexColumns[0]) {
+        indexes[index.indexColumns[0]] = index.name
+      }
+    })
+
+    tableColumns.forEach((col) => {
+      let typeId: number | undefined
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const colType = col.type as any
+
+      if (colType?.type?.case === 'optionalType') {
+        // Optional type: col.type.type.value.item.type.value
+        typeId = colType.type.value?.item?.type?.value as number
+      } else if (colType?.type?.case === 'typeId') {
+        // Direct type: col.type.type.value
+        typeId = colType.type.value as number
+      }
+
+      if (col.name && typeId) {
+        table[col.name] = typeId as YdbDataTypeId
+      }
+    })
+
+    await alterTable(ctx, {
+      tableName,
+      schema,
+      option,
+      model,
+      table,
+      indexes,
+    })
+  }
 }

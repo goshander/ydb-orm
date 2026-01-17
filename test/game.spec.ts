@@ -61,15 +61,15 @@ test(import.meta, 'game', options, async (t, { db }) => {
   t.expect(game.turn).toEqual(1)
 
   // index
-  // const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
-  // t.expect(gameByIndex).toBeTruthy()
+  const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
+  t.expect(gameByIndex).toBeTruthy()
 
-  // let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
-  // t.expect(gameTurnCheck?.turn).toEqual(1)
+  let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+  t.expect(gameTurnCheck?.turn).toEqual(1)
 
-  // await game.increment('turn', { by: 5 })
-  // t.expect(game.turn).toEqual(6)
+  await game.increment('turn', { by: 5 })
+  t.expect(game.turn).toEqual(6)
 
-  // gameTurnCheck = await Game.findOne({ where: { id: game.id } })
-  // t.expect(gameTurnCheck?.turn).toEqual(6)
+  gameTurnCheck = await Game.findOne({ where: { id: game.id } })
+  t.expect(gameTurnCheck?.turn).toEqual(6)
 })
