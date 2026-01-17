@@ -85,12 +85,12 @@ export class IamCredentialsProvider extends CredentialsProvider {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch token: ${response.status} ${response.statusText}`)
+        throw new Error(`ydb: [IAM] failed to fetch token: ${response.status} ${response.statusText}`)
       }
 
       const token = JSON.parse(await response.text()) as { iamToken?: string }
       if (!token.iamToken) {
-        throw new Error('No access token exists in response')
+        throw new Error('ydb: [IAM] no access token exists in response')
       }
 
       this.#token = {

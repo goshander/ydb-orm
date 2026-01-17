@@ -15,10 +15,11 @@ import pino, { type Logger } from 'pino'
 
 import { type YdbApi, api } from './api'
 import { SCHEMA_REJECTED_FIELD } from './constant'
+import { toYdbError } from './error'
 import { IamCredentialsProvider } from './iam'
 import { sync } from './sync'
 import type {
-  YdbConstructorType, YdbErrorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbQueryResult, YdbType,
+  YdbConstructorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbQueryResult, YdbType,
 } from './type'
 
 export const Ydb: YdbConstructorType = class Ydb implements YdbType {
@@ -124,10 +125,6 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     }
   }
 
-  async session(action: (queryClient: QueryClient)=> Promise<unknown>) {
-    return action(this._query)
-  }
-
   async sql(sql: string, params?: Record<string, JSValue>) {
     // create a proper template strings array with raw property
     let query = this._query(sql).timeout(this._timeout)
@@ -165,16 +162,8 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
       return result[0] as YdbQueryResult
     } catch (error) {
-      const ydbError = error as YdbErrorType
-      if (ydbError?.issues?.[0]) {
-        const ydbNestedError = ydbError.issues[0] as unknown as YdbErrorType
-        if (ydbNestedError.issues?.[0]) {
-          const ydbNestedErrorMessage = (ydbError.issues[0] as unknown as YdbErrorType).message
-          throw new Error(ydbNestedErrorMessage)
-        }
-        throw new Error(ydbNestedError.message)
-      }
-      throw error
+      const ydbError = toYdbError(error)
+      throw ydbError
     }
   }
 

@@ -6,14 +6,17 @@ import {
 } from '@ydbjs/api/table'
 import type { Driver } from '@ydbjs/core'
 
+import { toYdbError } from './error'
+
 export const api = (driver: Driver) => {
   const tableClient = driver.createClient(TableServiceDefinition)
 
   const createTable = async (req: CreateTableRequest) => {
     const response = await tableClient.createTable(req)
 
-    if (response.operation?.issues.length) {
-      throw new Error(response.operation?.issues[0].message)
+    if (response.operation?.issues?.length) {
+      const ydbError = toYdbError(response.operation)
+      throw ydbError
     }
 
     if (!response.operation?.result) {
@@ -28,8 +31,9 @@ export const api = (driver: Driver) => {
   const alterTable = async (req: AlterTableRequest) => {
     const response = await tableClient.alterTable(req)
 
-    if (response.operation?.issues.length) {
-      throw new Error(response.operation?.issues[0].message)
+    if (response.operation?.issues?.length) {
+      const ydbError = toYdbError(response.operation)
+      throw ydbError
     }
 
     if (!response.operation?.result) {
@@ -44,11 +48,12 @@ export const api = (driver: Driver) => {
     const response = await tableClient.describeTable({ path: `/${driver.database}/${tableName}` })
 
     if (response.operation?.issues.length) {
-      throw new Error(response.operation?.issues[0].message)
+      const ydbError = toYdbError(response.operation)
+      throw ydbError
     }
 
     if (!response.operation?.result) {
-      throw new Error('Table not found in database')
+      throw new Error('ydb: table not found in database')
     }
     const result = anyUnpack(response.operation?.result, DescribeTableResultSchema) as DescribeTableResult | undefined
 
