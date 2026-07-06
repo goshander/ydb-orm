@@ -1,7 +1,7 @@
 import { CredentialsProvider } from '@ydbjs/auth'
 import { type RetryConfig, retry } from '@ydbjs/retry'
 import { backoff } from '@ydbjs/retry/strategy'
-import { SignJWT, importPKCS8 } from 'jose'
+import { importPKCS8, SignJWT } from 'jose'
 
 type IamCredentialsToken = {
   value: string
@@ -10,9 +10,9 @@ type IamCredentialsToken = {
 
 export type IamCredentials = {
   iamEndpoint?: string
-  serviceAccountId: string;
-  accessKeyId: string;
-  privateKey: Buffer;
+  serviceAccountId: string
+  accessKeyId: string
+  privateKey: Buffer
 }
 
 export class IamCredentialsProvider extends CredentialsProvider {
@@ -39,8 +39,12 @@ export class IamCredentialsProvider extends CredentialsProvider {
     const now = Date.now()
     const expiredAt = now + 3600 * 1000
 
-    const key = await importPKCS8(this.#privateKey.toString('utf-8')
-      .replace(/PLEASE DO NOT REMOVE THIS LINE!.+?\n/, ''), 'PS256')
+    const key = await importPKCS8(
+      this.#privateKey
+        .toString('utf-8')
+        .replace(/PLEASE DO NOT REMOVE THIS LINE!.+?\n/, ''),
+      'PS256',
+    )
 
     const jwtJose = new SignJWT({
       aud: `https://${this.#iamEndpoint}/iam/v1/tokens`,
@@ -66,7 +70,7 @@ export class IamCredentialsProvider extends CredentialsProvider {
     }
 
     const retryConfig: RetryConfig = {
-      retry: (err) => (err instanceof Error),
+      retry: (err) => err instanceof Error,
       signal,
       budget: 5,
       strategy: backoff(10, 1000),
@@ -75,17 +79,22 @@ export class IamCredentialsProvider extends CredentialsProvider {
     this.#promise = retry(retryConfig, async (abSignal) => {
       const jwt = await this.jwt()
 
-      const response = await fetch(`https://${this.#iamEndpoint}/iam/v1/tokens`, {
-        method: 'POST',
-        headers: {
-          'content-Type': 'application/json',
+      const response = await fetch(
+        `https://${this.#iamEndpoint}/iam/v1/tokens`,
+        {
+          method: 'POST',
+          headers: {
+            'content-Type': 'application/json',
+          },
+          body: JSON.stringify({ jwt: jwt.token }),
+          signal: abSignal,
         },
-        body: JSON.stringify({ jwt: jwt.token }),
-        signal: abSignal,
-      })
+      )
 
       if (!response.ok) {
-        throw new Error(`ydb: [IAM] failed to fetch token: ${response.status} ${response.statusText}`)
+        throw new Error(
+          `ydb: [IAM] failed to fetch token: ${response.status} ${response.statusText}`,
+        )
       }
 
       const token = JSON.parse(await response.text()) as { iamToken?: string }

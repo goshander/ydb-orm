@@ -1,18 +1,18 @@
 import { nanoid } from 'nanoid'
 
-import { YdbDataType, YdbModel, YdbSchemaType } from '../..'
+import { YdbDataType, YdbModel, type YdbSchemaType } from '../..'
 
 type Fields = {
   id: string
   meta: string
-  user: Array<{ id: string, name: string }> // [{id, name}, {id, name}]
-  timeout: { turn: number, answer: number } // {turn: 30sec, answer: 30sec}
-  mode: string, // hard, easy
-  score: Record<string, number>, // {userId: 0, userId: 0}
-  status: 'init' | 'start' | 'end', // init, start, end
-  turn: number, // turn counter
-  progress: number, // game progress
-  createdAt: Date,
+  user: Array<{ id: string; name: string }> // [{id, name}, {id, name}]
+  timeout: { turn: number; answer: number } // {turn: 30sec, answer: 30sec}
+  mode: string // hard, easy
+  score: Record<string, number> // {userId: 0, userId: 0}
+  status: 'init' | 'start' | 'end' // init, start, end
+  turn: number // turn counter
+  progress: number // game progress
+  createdAt: Date
 }
 
 export class Game extends YdbModel implements Fields {
@@ -48,7 +48,16 @@ export class Game extends YdbModel implements Fields {
     super(fields)
 
     const {
-      meta, user, timeout, mode, score, status, turn, progress, id, createdAt,
+      meta,
+      user,
+      timeout,
+      mode,
+      score,
+      status,
+      turn,
+      progress,
+      id,
+      createdAt,
     } = fields
     this.id = id || nanoid(32)
     this.meta = meta || ''
@@ -59,6 +68,12 @@ export class Game extends YdbModel implements Fields {
     this.status = status || 'init'
     this.turn = turn || 0
     this.progress = progress || 0
-    this.createdAt = createdAt || (() => { const d = new Date(); d.setMilliseconds(0); return d })()
+    this.createdAt =
+      createdAt ||
+      (() => {
+        const d = new Date()
+        d.setMilliseconds(0)
+        return d
+      })()
   }
 }

@@ -1,9 +1,7 @@
 import bunTest from 'bun:test'
 import pino, { type BaseLogger } from 'pino'
 
-import {
-  Ydb, type YdbModelConstructorType, type YdbType,
-} from '.'
+import { Ydb, type YdbModelConstructorType, type YdbType } from '.'
 
 type YdbTestOptions = {
   models?: Array<YdbModelConstructorType>
@@ -13,29 +11,22 @@ type YdbTestOptions = {
 export type TestOptions = bunTest.TestOptions & YdbTestOptions
 
 export type TestCtx = {
-  db: YdbType;
-  logger: BaseLogger;
+  db: YdbType
+  logger: BaseLogger
 }
 
 type TestBase = {
-  expect: typeof bunTest.expect;
-  setSystemTime: typeof bunTest.setSystemTime;
-  mock: typeof bunTest.mock;
+  expect: typeof bunTest.expect
+  setSystemTime: typeof bunTest.setSystemTime
+  mock: typeof bunTest.mock
   spyOn: typeof bunTest.spyOn
   init: typeof bunTest.beforeAll
   teardown: typeof bunTest.afterAll
 }
 
-export type TestCallback = (t: TestBase, ctx: TestCtx)=> void | Promise<void>
+export type TestCallback = (t: TestBase, ctx: TestCtx) => void | Promise<void>
 
-type TestArgs = [
-  string,
-  TestOptions,
-  TestCallback,
-] | [
-  string,
-  TestCallback,
-]
+type TestArgs = [string, TestOptions, TestCallback] | [string, TestCallback]
 
 async function prepare(options?: YdbTestOptions) {
   const logger = pino({
@@ -88,9 +79,9 @@ async function prepare(options?: YdbTestOptions) {
 
 type BunTest = (
   label: string,
-  fn: ()=> void | Promise<unknown>,
+  fn: () => void | Promise<unknown>,
   options?: TestOptions,
-)=> void
+) => void
 
 const baseTest = (args: TestArgs, testFunc: BunTest) => {
   let name: string
@@ -98,33 +89,32 @@ const baseTest = (args: TestArgs, testFunc: BunTest) => {
   let options: TestOptions | undefined
 
   if (args.length === 3) {
-    [name, options, callback] = args
+    ;[name, options, callback] = args
   } else {
-    [name, callback] = args
+    ;[name, callback] = args
   }
 
-  return testFunc(name, async () => {
-    const { test, ctx } = await prepare(options)
-    await callback(test, ctx)
-  }, options)
+  return testFunc(
+    name,
+    async () => {
+      const { test, ctx } = await prepare(options)
+      await callback(test, ctx)
+    },
+    options,
+  )
 }
 
-// @ts-expect-error bun test re-export fix: https://github.com/oven-sh/bun/issues/5400
-const testFunc = (meta: ImportMeta, func?: string) => (func ? Bun.jest(meta.path).test[func] : Bun.jest(meta.path).test)
-
-export const badTest = bunTest
-
-// export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
-export const test = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta))
-// test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
-test.skip = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skip'))
-// test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
-test.todo = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'todo'))
-// test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
-test.only = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'only'))
-// test.if = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.if(cond)))
-test.if = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'if')(cond))
-// test.skipIf = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.skipIf(cond)))
-test.skipIf = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skipIf')(cond))
+export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
+test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
+test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
+test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
+test.if =
+  (cond: boolean) =>
+  (...args: TestArgs) =>
+    baseTest(args, bunTest.test.if(cond))
+test.skipIf =
+  (cond: boolean) =>
+  (...args: TestArgs) =>
+    baseTest(args, bunTest.test.skipIf(cond))
 
 export const it = test

@@ -10,7 +10,7 @@ const options: TestOptions = {
 // generate table name with only alphanumeric characters (no hyphens) and non number from start
 const generateTableName = () => `sql_${nanoid().replace(/-/g, '_')}`
 
-test(import.meta, 'sql - query without parameters', options, async (t, { db }) => {
+test('sql - query without parameters', options, async (t, { db }) => {
   const result = await db.sql('SELECT 1 AS value;')
 
   t.expect(result).toBeDefined()
@@ -19,7 +19,7 @@ test(import.meta, 'sql - query without parameters', options, async (t, { db }) =
   t.expect(result[0].value).toBe(1)
 })
 
-test(import.meta, 'sql - create and drop test table', options, async (t, { db }) => {
+test('sql - create and drop test table', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -44,7 +44,7 @@ test(import.meta, 'sql - create and drop test table', options, async (t, { db })
   t.expect(Array.isArray(result)).toBe(true)
 })
 
-test(import.meta, 'sql - insert with parameters', options, async (t, { db }) => {
+test('sql - insert with parameters', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -74,13 +74,15 @@ test(import.meta, 'sql - insert with parameters', options, async (t, { db }) => 
   )
 
   // verify insertion
-  const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = '${userId}';`)
+  const result = await db.sql(
+    `SELECT * FROM ${tableName} WHERE id = '${userId}';`,
+  )
   t.expect(result.length).toBe(1)
   t.expect(result[0].name).toBe('user-one')
   t.expect(result[0].age).toBe(30)
 })
 
-test(import.meta, 'sql - query with single parameter', options, async (t, { db }) => {
+test('sql - query with single parameter', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -119,7 +121,7 @@ test(import.meta, 'sql - query with single parameter', options, async (t, { db }
   t.expect(result[0].age).toBe(30)
 })
 
-test(import.meta, 'sql - query with multiple parameters', options, async (t, { db }) => {
+test('sql - query with multiple parameters', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -169,7 +171,7 @@ test(import.meta, 'sql - query with multiple parameters', options, async (t, { d
   t.expect(result[0].age).toBe(35)
 })
 
-test(import.meta, 'sql - parameter with $ prefix in key', options, async (t, { db }) => {
+test('sql - parameter with $ prefix in key', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -186,13 +188,10 @@ test(import.meta, 'sql - parameter with $ prefix in key', options, async (t, { d
   `)
 
   // insert with $ prefix in parameter keys (should be stripped automatically)
-  await db.sql(
-    `UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`,
-    {
-      $id: 'test-1',
-      $name: 'Test User',
-    },
-  )
+  await db.sql(`UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`, {
+    $id: 'test-1',
+    $name: 'Test User',
+  })
 
   // verify insertion
   const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = 'test-1';`)
@@ -200,7 +199,7 @@ test(import.meta, 'sql - parameter with $ prefix in key', options, async (t, { d
   t.expect(result[0].name).toBe('Test User')
 })
 
-test(import.meta, 'sql - different data types', options, async (t, { db }) => {
+test('sql - different data types', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -240,10 +239,9 @@ test(import.meta, 'sql - different data types', options, async (t, { db }) => {
   )
 
   // query and verify
-  const result = await db.sql(
-    `SELECT * FROM ${tableName} WHERE id = $id;`,
-    { id: userId },
-  )
+  const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = $id;`, {
+    id: userId,
+  })
 
   t.expect(result.length).toBe(1)
   t.expect(result[0].name).toBe('user-one')
@@ -253,7 +251,7 @@ test(import.meta, 'sql - different data types', options, async (t, { db }) => {
   t.expect((result[0].createdAt as Date).getTime()).toBe(now.getTime())
 })
 
-test(import.meta, 'sql - update with parameters', options, async (t, { db }) => {
+test('sql - update with parameters', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -284,17 +282,16 @@ test(import.meta, 'sql - update with parameters', options, async (t, { db }) => 
   )
 
   // verify update
-  const result = await db.sql(
-    `SELECT * FROM ${tableName} WHERE id = $id;`,
-    { id: userId },
-  )
+  const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = $id;`, {
+    id: userId,
+  })
 
   t.expect(result.length).toBe(1)
   t.expect(result[0].name).toBe('John Updated')
   t.expect(result[0].age).toBe(31)
 })
 
-test(import.meta, 'sql - delete with parameters', options, async (t, { db }) => {
+test('sql - delete with parameters', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -313,25 +310,22 @@ test(import.meta, 'sql - delete with parameters', options, async (t, { db }) => 
   const userIdOne = nanoid()
   const userIdTwo = nanoid()
 
-  await db.sql(
-    `UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`,
-    { id: userIdOne, name: 'user-one' },
-  )
+  await db.sql(`UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`, {
+    id: userIdOne,
+    name: 'user-one',
+  })
 
-  await db.sql(
-    `UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`,
-    { id: userIdTwo, name: 'user-two' },
-  )
+  await db.sql(`UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`, {
+    id: userIdTwo,
+    name: 'user-two',
+  })
 
   // verify both records exist
   let result = await db.sql(`SELECT * FROM ${tableName};`)
   t.expect(result.length).toBe(2)
 
   // delete one record with parameters
-  await db.sql(
-    `DELETE FROM ${tableName} WHERE id = $id;`,
-    { id: userIdOne },
-  )
+  await db.sql(`DELETE FROM ${tableName} WHERE id = $id;`, { id: userIdOne })
 
   // verify deletion
   result = await db.sql(`SELECT * FROM ${tableName};`)
@@ -341,7 +335,7 @@ test(import.meta, 'sql - delete with parameters', options, async (t, { db }) => 
   t.expect(userId).toBe(userIdTwo)
 })
 
-test(import.meta, 'sql - count query with parameters', options, async (t, { db }) => {
+test('sql - count query with parameters', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -388,7 +382,7 @@ test(import.meta, 'sql - count query with parameters', options, async (t, { db }
   t.expect(result[0].count).toBe(2n)
 })
 
-test(import.meta, 'sql - empty result set', options, async (t, { db }) => {
+test('sql - empty result set', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -411,15 +405,18 @@ test(import.meta, 'sql - empty result set', options, async (t, { db }) => {
   t.expect(result.length).toBe(0)
 })
 
-test(import.meta, 'sql - complex query with multiple operations', options, async (t, { db }) => {
-  const tableName = generateTableName()
+test(
+  'sql - complex query with multiple operations',
+  options,
+  async (t, { db }) => {
+    const tableName = generateTableName()
 
-  t.teardown(async () => {
-    await db.sql(`DROP TABLE ${tableName};`)
-  })
+    t.teardown(async () => {
+      await db.sql(`DROP TABLE ${tableName};`)
+    })
 
-  // create table
-  await db.sql(`
+    // create table
+    await db.sql(`
     CREATE TABLE ${tableName} (
       id String,
       name Utf8,
@@ -429,33 +426,49 @@ test(import.meta, 'sql - complex query with multiple operations', options, async
     );
   `)
 
-  const users: Array<{ id: string; name: string; age: number; score: number }> = []
+    const users: Array<{
+      id: string
+      name: string
+      age: number
+      score: number
+    }> = []
 
-  // insert multiple records
-  for (let i = 1; i <= 5; i += 1) {
-    users.push({
-      id: nanoid(), name: `user-${i}`, age: 20 + i, score: i * 10,
-    })
-  }
+    // insert multiple records
+    for (let i = 1; i <= 5; i += 1) {
+      users.push({
+        id: nanoid(),
+        name: `user-${i}`,
+        age: 20 + i,
+        score: i * 10,
+      })
+    }
 
-  await Promise.all(users.map((user) => db.sql(
-    `UPSERT INTO ${tableName} (id, name, age, score) VALUES ($id, $name, $age, $score);`,
-    user,
-  )))
+    await Promise.all(
+      users.map((user) =>
+        db.sql(
+          `UPSERT INTO ${tableName} (id, name, age, score) VALUES ($id, $name, $age, $score);`,
+          user,
+        ),
+      ),
+    )
 
-  // complex query with ORDER BY and LIMIT
-  const result = await db.sql(
-    `SELECT * FROM ${tableName} WHERE age >= $min_age ORDER BY score DESC LIMIT $limit;`,
-    { min_age: 22, limit: 3 },
-  )
+    // complex query with ORDER BY and LIMIT
+    const result = await db.sql(
+      `SELECT * FROM ${tableName} WHERE age >= $min_age ORDER BY score DESC LIMIT $limit;`,
+      {
+        min_age: 22,
+        limit: 3,
+      },
+    )
 
-  t.expect(result.length).toBe(3)
-  t.expect(result[0].score).toBe(50) // highest score first
-  t.expect(result[1].score).toBe(40)
-  t.expect(result[2].score).toBe(30)
-})
+    t.expect(result.length).toBe(3)
+    t.expect(result[0].score).toBe(50) // highest score first
+    t.expect(result[1].score).toBe(40)
+    t.expect(result[2].score).toBe(30)
+  },
+)
 
-test.only(import.meta, 'sql - json field', options, async (t, { db }) => {
+test.only('sql - json field', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {
@@ -472,15 +485,13 @@ test.only(import.meta, 'sql - json field', options, async (t, { db }) => {
   `)
 
   // insert json data
-  await db.sql(
-    `UPSERT INTO ${tableName} (id, data) VALUES ($id, $data);`,
-    { id: nanoid(), data: { field: 'value' } },
-  )
+  await db.sql(`UPSERT INTO ${tableName} (id, data) VALUES ($id, $data);`, {
+    id: nanoid(),
+    data: { field: 'value' },
+  })
 
   // select json data
-  const result = await db.sql(
-    `SELECT * FROM ${tableName};`,
-  )
+  const result = await db.sql(`SELECT * FROM ${tableName};`)
 
   t.expect(Array.isArray(result)).toBe(true)
   t.expect(result.length).toBe(1)

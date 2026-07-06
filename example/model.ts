@@ -1,6 +1,6 @@
 import * as argon2 from 'argon2'
 import { nanoid } from 'nanoid'
-import { YdbDataType, YdbModel, YdbSchemaType } from 'ydb-orm'
+import { YdbDataType, YdbModel, type YdbSchemaType } from 'ydb-orm'
 
 type Fields = {
   id: string
@@ -25,9 +25,7 @@ export class User extends YdbModel implements Fields {
 
   constructor(fields: Fields) {
     super(fields)
-    const {
-      login, createdAt, id = null, password,
-    } = fields
+    const { login, createdAt, id = null, password } = fields
     this.id = id || nanoid()
     this.login = login
     this.password = password

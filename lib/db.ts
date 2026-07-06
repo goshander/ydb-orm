@@ -1,26 +1,28 @@
-import fs from 'fs'
-import path from 'path'
-import type { SecureContextOptions } from 'tls'
-
 import type { CredentialsProvider } from '@ydbjs/auth'
 import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token'
 import { AnonymousCredentialsProvider } from '@ydbjs/auth/anonymous'
 import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata'
 import { Driver } from '@ydbjs/core'
 import { type QueryClient, query as ydbQuery } from '@ydbjs/query'
-import {
-  type JSValue, type Type, type Value, fromJs,
-} from '@ydbjs/value'
+import { fromJs, type JSValue, type Type, type Value } from '@ydbjs/value'
 import { Json } from '@ydbjs/value/primitive'
+import fs from 'fs'
+import path from 'path'
 import pino, { type BaseLogger } from 'pino'
+import type { SecureContextOptions } from 'tls'
 
-import { type YdbApi, api } from './api'
+import { api, type YdbApi } from './api'
 import { SCHEMA_REJECTED_FIELD } from './constant'
 import { toYdbError } from './error'
 import { IamCredentialsProvider } from './iam'
 import { sync } from './sync'
 import type {
-  YdbConstructorType, YdbModelConstructorType, YdbModelRegistryType, YdbOptionType, YdbQueryResult, YdbType,
+  YdbConstructorType,
+  YdbModelConstructorType,
+  YdbModelRegistryType,
+  YdbOptionType,
+  YdbQueryResult,
+  YdbType,
 } from './type'
 
 export const Ydb: YdbConstructorType = class Ydb implements YdbType {
@@ -33,7 +35,9 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
   logger: BaseLogger
   debug: boolean = false
 
-  get timeout() { return this._timeout }
+  get timeout() {
+    return this._timeout
+  }
 
   private static _db: YdbType
 
@@ -41,15 +45,13 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     return Ydb._db
   }
 
-  static init({
-    token,
-    credential,
-    ...params
-  }: YdbOptionType = {}) {
+  static init({ token, credential, ...params }: YdbOptionType = {}) {
     let ssl: SecureContextOptions | undefined
 
     if (!token && fs.existsSync(path.join(process.cwd(), 'ydb-sa.json'))) {
-      credential = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'ydb-sa.json'), 'utf8'))
+      credential = JSON.parse(
+        fs.readFileSync(path.join(process.cwd(), 'ydb-sa.json'), 'utf8'),
+      )
     } else if (!token && process.env.YDB_SA_KEY) {
       credential = JSON.parse(process.env.YDB_SA_KEY)
     }
@@ -74,7 +76,16 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
   constructor({
     connectionString,
-    endpoint, database, models, token, credential, logger, timeout, ssl, meta, debug,
+    endpoint,
+    database,
+    models,
+    token,
+    credential,
+    logger,
+    timeout,
+    ssl,
+    meta,
+    debug,
   }: YdbOptionType) {
     if (timeout) this._timeout = timeout
     this.logger = logger || pino()
@@ -95,7 +106,9 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
     let connectionStringFixed = connectionString || ''
 
     if (!connectionString && endpoint && endpoint.trim()) {
-      connectionStringFixed = endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint
+      connectionStringFixed = endpoint.endsWith('/')
+        ? endpoint.substring(0, endpoint.length - 1)
+        : endpoint
     }
     if (!connectionString && database && database.trim()) {
       connectionStringFixed = database.startsWith('/')
@@ -107,8 +120,13 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       connectionStringFixed = 'grpc://localhost:2136?database=/local'
     }
 
-    connectionStringFixed = connectionStringFixed.startsWith('grpc') ? connectionStringFixed : `grpcs://${connectionStringFixed}`
-    connectionStringFixed = connectionStringFixed.replace('/?database=', '?database=')
+    connectionStringFixed = connectionStringFixed.startsWith('grpc')
+      ? connectionStringFixed
+      : `grpcs://${connectionStringFixed}`
+    connectionStringFixed = connectionStringFixed.replace(
+      '/?database=',
+      '?database=',
+    )
 
     this._driver = new Driver(connectionStringFixed, {
       credentialsProvider: authService,
@@ -145,7 +163,11 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
         let wrappedValue: JSValue | Value<Type>
 
         // fix for json fields
-        if ((!!value) && (value.constructor === Array || value.constructor === Object) && !paramName.startsWith('where_')) {
+        if (
+          value &&
+          (value.constructor === Array || value.constructor === Object) &&
+          !paramName.startsWith('where_')
+        ) {
           wrappedValue = new Json(JSON.stringify(value))
         } else {
           wrappedValue = fromJs(value)
@@ -214,13 +236,23 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
 
   check(model: YdbModelConstructorType) {
     if (model.tableName.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-      this.logger.error({ table: model.tableName, mode: model.className }, 'ydb: invalid table name')
-      throw new Error(`ydb: invalid table name [${model.tableName}] in model [${model.className}]`)
+      this.logger.error(
+        { table: model.tableName, mode: model.className },
+        'ydb: invalid table name',
+      )
+      throw new Error(
+        `ydb: invalid table name [${model.tableName}] in model [${model.className}]`,
+      )
     }
 
     if (model.primaryKey.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-      this.logger.error({ key: model.primaryKey, mode: model.className }, 'ydb: invalid primary key')
-      throw new Error(`ydb: invalid primary key [${model.primaryKey}] in model [${model.className}]`)
+      this.logger.error(
+        { key: model.primaryKey, mode: model.className },
+        'ydb: invalid primary key',
+      )
+      throw new Error(
+        `ydb: invalid primary key [${model.primaryKey}] in model [${model.className}]`,
+      )
     }
 
     const schemaKeys = Object.keys(model.schema.field || model.schema)
@@ -229,13 +261,23 @@ export const Ydb: YdbConstructorType = class Ydb implements YdbType {
       const schemaKey = schemaKeys[i]
 
       if (schemaKey.replace(/[A-Za-z0-9_]/g, '').length > 0) {
-        this.logger.error({ field: schemaKey, mode: model.className }, 'ydb: invalid schema key')
-        throw new Error(`ydb: invalid schema key [${schemaKey}] in model [${model.className}]`)
+        this.logger.error(
+          { field: schemaKey, mode: model.className },
+          'ydb: invalid schema key',
+        )
+        throw new Error(
+          `ydb: invalid schema key [${schemaKey}] in model [${model.className}]`,
+        )
       }
 
       if (SCHEMA_REJECTED_FIELD.includes(schemaKey)) {
-        this.logger.error({ field: schemaKey, mode: model.className }, 'ydb: rejected schema key')
-        throw new Error(`ydb: rejected schema key [${schemaKey}] in model [${model.className}]`)
+        this.logger.error(
+          { field: schemaKey, mode: model.className },
+          'ydb: rejected schema key',
+        )
+        throw new Error(
+          `ydb: rejected schema key [${schemaKey}] in model [${model.className}]`,
+        )
       }
     }
   }

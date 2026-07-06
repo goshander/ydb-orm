@@ -1,12 +1,7 @@
 {
   "compilerOptions": {
-    "lib": [
-      "es2022"
-    ],
-    "types": [
-      "bun-types",
-      "long",
-    ],
+    "lib": ["es2022"],
+    "types": ["bun-types", "long"],
     "target": "es2022",
     "moduleResolution": "nodenext",
     "module": "nodenext",
@@ -31,8 +26,5 @@
     "strictNullChecks": true,
     "strictPropertyInitialization": true
   },
-  "include": [
-    "index.ts",
-    "lib/**/*"
-  ]
+  "include": ["index.ts", "lib/**/*"]
 }

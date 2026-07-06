@@ -14,7 +14,9 @@ import type {
 type TableStructure = Record<string, YdbDataTypeId>
 type IndexStructure = Record<string, string>
 
-const exportFieldType = (fieldType: YdbDataTypeKey | YdbDataTypeWithOption): YdbDataTypeWithOption => {
+const exportFieldType = (
+  fieldType: YdbDataTypeKey | YdbDataTypeWithOption,
+): YdbDataTypeWithOption => {
   if ((fieldType as YdbDataTypeWithOption).type) {
     return fieldType as YdbDataTypeWithOption
   }
@@ -24,11 +26,13 @@ const exportFieldType = (fieldType: YdbDataTypeKey | YdbDataTypeWithOption): Ydb
 const createTable = async (
   ctx: YdbType,
   {
-    tableName, schema, primaryKey,
-  }: { tableName: string, schema: YdbSchemaFieldType, primaryKey: string },
+    tableName,
+    schema,
+    primaryKey,
+  }: { tableName: string; schema: YdbSchemaFieldType; primaryKey: string },
 ) => {
   const columns: string[] = []
-  const indexes: Array<{ name: string, field: string }> = []
+  const indexes: Array<{ name: string; field: string }> = []
 
   Object.entries(schema).forEach(([field, fieldTypeData]) => {
     const fieldType = exportFieldType(fieldTypeData)
@@ -54,16 +58,22 @@ const createTable = async (
     throw error
   }
 
-  // Create indexes
+  // create indexes
   for (let i = 0; i < indexes.length; i += 1) {
     const index = indexes[i]
     const createIndexSql = `ALTER TABLE ${tableName} ADD INDEX ${index.name} GLOBAL ON (${index.field});`
 
     try {
       await ctx.sql(createIndexSql)
-      ctx.logger.info({ table: tableName, index: index.name }, 'ydb: create index')
+      ctx.logger.info(
+        { table: tableName, index: index.name },
+        'ydb: create index',
+      )
     } catch (error) {
-      ctx.logger.error({ table: tableName, index: index.name, error }, 'ydb: error creating index')
+      ctx.logger.error(
+        { table: tableName, index: index.name, error },
+        'ydb: error creating index',
+      )
     }
   }
 }
@@ -78,12 +88,12 @@ const alterTable = async (
     table,
     indexes,
   }: {
-    tableName: string,
-    schema: YdbSchemaFieldType,
-    option: YdbSchemaOptionType,
-    table: TableStructure,
-    indexes: IndexStructure,
-    model: YdbModelConstructorType,
+    tableName: string
+    schema: YdbSchemaFieldType
+    option: YdbSchemaOptionType
+    table: TableStructure
+    indexes: IndexStructure
+    model: YdbModelConstructorType
   },
 ) => {
   const renamed: Record<string, YdbDataTypeWithOption> = {}
@@ -93,32 +103,43 @@ const alterTable = async (
 
     if (fieldType.type == null) continue
 
-    // Handle renamed fields
+    // handle renamed fields
     if (fieldType.renamed && table[field] == null) {
-      renamed[fieldType.renamed] = fieldType
+      renamed[field] = fieldType
       delete table[field]
       continue
     }
 
-    // Handle drop fields
+    // handle drop fields
     if (fieldType.drop) {
       if (table[field]) {
-        // Drop index if exists
+        // drop index if exists
         if (indexes[field]) {
           try {
-            await ctx.sql(`ALTER TABLE ${tableName} DROP INDEX ${indexes[field]};`)
-            ctx.logger.info({ table: tableName, index: indexes[field] }, 'ydb: drop index')
+            await ctx.sql(
+              `ALTER TABLE ${tableName} DROP INDEX ${indexes[field]};`,
+            )
+            ctx.logger.info(
+              { table: tableName, index: indexes[field] },
+              'ydb: drop index',
+            )
           } catch (error) {
-            ctx.logger.error({ table: tableName, index: indexes[field], error }, 'ydb: error dropping index')
+            ctx.logger.error(
+              { table: tableName, index: indexes[field], error },
+              'ydb: error dropping index',
+            )
           }
         }
 
-        // Drop column
+        // drop column
         try {
           await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${field};`)
           ctx.logger.info({ table: tableName, field }, 'ydb: drop column')
         } catch (error) {
-          ctx.logger.error({ table: tableName, field, error }, 'ydb: error dropping column')
+          ctx.logger.error(
+            { table: tableName, field, error },
+            'ydb: error dropping column',
+          )
         }
 
         delete table[field]
@@ -128,70 +149,103 @@ const alterTable = async (
 
     const typeId = DATA_TYPE_KEY_TO_ID_MAP[fieldType.type]
     if (!typeId) {
-      ctx.logger.error({ field, type: fieldType.type }, 'ydb: unknown field type')
+      ctx.logger.error(
+        { field, type: fieldType.type },
+        'ydb: unknown field type',
+      )
       continue
     }
 
-    // Add new field
+    // add new field
     if (!table[field]) {
       try {
-        await ctx.sql(`ALTER TABLE ${tableName} ADD COLUMN ${field} ${fieldType.type};`)
+        await ctx.sql(
+          `ALTER TABLE ${tableName} ADD COLUMN ${field} ${fieldType.type};`,
+        )
         ctx.logger.info({ table: tableName, field }, 'ydb: add column')
       } catch (error) {
-        ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding column')
+        ctx.logger.error(
+          { table: tableName, field, error },
+          'ydb: error adding column',
+        )
       }
 
-      // Add index if needed
+      // add index if needed
       if (fieldType.index && !indexes[field]) {
         try {
-          await ctx.sql(`ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`)
+          await ctx.sql(
+            `ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`,
+          )
           ctx.logger.info({ table: tableName, field }, 'ydb: add index')
         } catch (error) {
-          ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding index')
+          ctx.logger.error(
+            { table: tableName, field, error },
+            'ydb: error adding index',
+          )
         }
       }
 
       continue
     }
 
-    // Check if type changed
+    // check if type changed
     if (table[field] !== typeId) {
-      ctx.logger.warn({ field, oldType: table[field], newType: typeId }, 'ydb: type change detected, manual migration may be needed')
+      ctx.logger.warn(
+        { field, oldType: table[field], newType: typeId },
+        'ydb: type change detected, manual migration may be needed',
+      )
     }
 
-    // Add/drop index
+    // add/drop index
     if (fieldType.index && !indexes[field]) {
       try {
-        await ctx.sql(`ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`)
+        await ctx.sql(
+          `ALTER TABLE ${tableName} ADD INDEX index_${tableName}_${field} GLOBAL ON (${field});`,
+        )
         ctx.logger.info({ table: tableName, field }, 'ydb: add index')
       } catch (error) {
-        ctx.logger.error({ table: tableName, field, error }, 'ydb: error adding index')
+        ctx.logger.error(
+          { table: tableName, field, error },
+          'ydb: error adding index',
+        )
       }
     } else if (!fieldType.index && indexes[field]) {
       try {
         await ctx.sql(`ALTER TABLE ${tableName} DROP INDEX ${indexes[field]};`)
-        ctx.logger.info({ table: tableName, index: indexes[field] }, 'ydb: drop index')
+        ctx.logger.info(
+          { table: tableName, index: indexes[field] },
+          'ydb: drop index',
+        )
       } catch (error) {
-        ctx.logger.error({ table: tableName, index: indexes[field], error }, 'ydb: error dropping index')
+        ctx.logger.error(
+          { table: tableName, index: indexes[field], error },
+          'ydb: error dropping index',
+        )
       }
     }
 
     if (option.strict) delete table[field]
   }
 
-  // Strict mode: drop fields not in schema
+  // strict mode: drop fields not in schema
   if (option.strict) {
     for (const field of Object.keys(table)) {
       try {
         await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${field};`)
-        ctx.logger.info({ table: tableName, field }, 'ydb: drop column (strict mode)')
+        ctx.logger.info(
+          { table: tableName, field },
+          'ydb: drop column (strict mode)',
+        )
       } catch (error) {
-        ctx.logger.error({ table: tableName, field, error }, 'ydb: error dropping column')
+        ctx.logger.error(
+          { table: tableName, field, error },
+          'ydb: error dropping column',
+        )
       }
     }
   }
 
-  // Handle renamed fields (copy data)
+  // handle renamed fields (copy data)
   const renamedFields = Object.entries(renamed)
 
   for (let i = 0; i < renamedFields.length; i += 1) {
@@ -199,20 +253,31 @@ const alterTable = async (
     const oldField = fieldType.renamed!
 
     try {
-      // Add new column
-      await ctx.sql(`ALTER TABLE ${tableName} ADD COLUMN ${newField} ${fieldType.type};`)
+      // add new column
+      await ctx.sql(
+        `ALTER TABLE ${tableName} ADD COLUMN ${newField} ${fieldType.type};`,
+      )
 
-      // Copy data from old column to new column
+      // copy data from old column to new column
       await model.copy(oldField, newField)
 
-      // Drop old column
+      // drop old column
       await ctx.sql(`ALTER TABLE ${tableName} DROP COLUMN ${oldField};`)
 
-      ctx.logger.info({ table: tableName, from: oldField, to: newField }, 'ydb: renamed field')
+      ctx.logger.info(
+        { table: tableName, from: oldField, to: newField },
+        'ydb: renamed field',
+      )
     } catch (error) {
-      ctx.logger.error({
-        table: tableName, from: oldField, to: newField, error,
-      }, 'ydb: error renaming field')
+      ctx.logger.error(
+        {
+          table: tableName,
+          from: oldField,
+          to: newField,
+          error,
+        },
+        'ydb: error renaming field',
+      )
     }
   }
 }
@@ -239,13 +304,17 @@ export const sync = async (ctx: YdbType) => {
 
     if (model.schema.field) {
       schema = model.schema.field as YdbSchemaFieldType
-      const schemaOption = model.schema.option as YdbSchemaOptionType | undefined
-      if (schemaOption) { option = schemaOption }
+      const schemaOption = model.schema.option as
+        | YdbSchemaOptionType
+        | undefined
+      if (schemaOption) {
+        option = schemaOption
+      }
     } else {
       schema = model.schema as YdbSchemaFieldType
     }
 
-    // Table doesn't exist - create it
+    // table doesn't exist - create it
     if (!tableExists) {
       await createTable(ctx, {
         tableName,
@@ -255,7 +324,7 @@ export const sync = async (ctx: YdbType) => {
       continue
     }
 
-    // Table exists - check if alteration is needed
+    // table exists - check if alteration is needed
     const tableStructure = await api.describeTable(tableName)
 
     const table: TableStructure = {}
@@ -273,14 +342,14 @@ export const sync = async (ctx: YdbType) => {
     tableColumns.forEach((col) => {
       let typeId: number | undefined
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: column type very difference
       const colType = col.type as any
 
       if (colType?.type?.case === 'optionalType') {
-        // Optional type: col.type.type.value.item.type.value
+        // optional type: col.type.type.value.item.type.value
         typeId = colType.type.value?.item?.type?.value as number
       } else if (colType?.type?.case === 'typeId') {
-        // Direct type: col.type.type.value
+        // direct type: col.type.type.value
         typeId = colType.type.value as number
       }
 

@@ -1,4 +1,4 @@
-import { TestOptions, test } from '../test'
+import { type TestOptions, test } from '../test'
 
 import { Game as GameModel } from './model/game'
 import { User as UserModel } from './model/user'
@@ -11,14 +11,11 @@ declare module '..' {
 }
 
 const options: TestOptions = {
-  models: [
-    UserModel,
-    GameModel,
-  ],
+  models: [UserModel, GameModel],
   sync: true,
 }
 
-test(import.meta, 'game', options, async (t, { db }) => {
+test('game', options, async (t, { db }) => {
   const User = db.model.User
   const Game = db.model.Game
 
@@ -61,7 +58,10 @@ test(import.meta, 'game', options, async (t, { db }) => {
   t.expect(game.turn).toEqual(1)
 
   // index
-  const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
+  const gameByIndex = await Game.findOne({
+    where: { mode: 'easy' },
+    index: 'index_game_mode',
+  })
   t.expect(gameByIndex).toBeTruthy()
 
   let gameTurnCheck = await Game.findOne({ where: { id: game.id } })

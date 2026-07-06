@@ -1,9 +1,12 @@
 import type { LikeType, PrimitiveType, WhereType } from './type'
 
-export const where = (seed: WhereType | { or: WhereType }, paramPrefix: string = 'where') => {
+export const where = (
+  seed: WhereType | { or: WhereType },
+  paramPrefix: string = 'where',
+) => {
   let unit = ' AND '
 
-  const data: WhereType = seed.or ? seed.or as WhereType : seed as WhereType
+  const data: WhereType = seed.or ? (seed.or as WhereType) : (seed as WhereType)
 
   if (seed.or) {
     unit = ' OR '

@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 
-import { YdbDataType, YdbModel, YdbSchemaType } from '../..'
+import { YdbDataType, YdbModel, type YdbSchemaType } from '../..'
 
 type Fields = {
   id: string
@@ -26,6 +26,12 @@ export class User extends YdbModel implements Fields {
     const { name, id, createdAt } = fields
     this.id = id || nanoid()
     this.name = name || ''
-    this.createdAt = createdAt || (() => { const d = new Date(); d.setMilliseconds(0); return d })()
+    this.createdAt =
+      createdAt ||
+      (() => {
+        const d = new Date()
+        d.setMilliseconds(0)
+        return d
+      })()
   }
 }

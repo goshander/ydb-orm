@@ -1,12 +1,20 @@
 /** biome-ignore-all lint/complexity/noThisInStatic: constructor or instance as expected */
 import { DEFAULT_PRIMARY_KEY } from './constant'
 import type {
-  PrimitiveType, WhereType, YdbModelConstructorType, YdbModelType,
-  YdbSchemaFieldType, YdbSchemaOptionType, YdbSchemaType, YdbType,
+  PrimitiveType,
+  WhereType,
+  YdbModelConstructorType,
+  YdbModelType,
+  YdbSchemaFieldType,
+  YdbSchemaOptionType,
+  YdbSchemaType,
+  YdbType,
 } from './type'
 import { where } from './where'
 
-export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbModelType {
+export const YdbModel: YdbModelConstructorType = class YdbModel
+  implements YdbModelType
+{
   [field: string]: unknown
 
   constructor(fields: Record<string, PrimitiveType>) {
@@ -21,13 +29,17 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   static schema: YdbSchemaType
 
-  static get ctx() { return this._ctx }
+  static get ctx() {
+    return this._ctx
+  }
 
   static setCtx(ctx: YdbType) {
     this._ctx = ctx
   }
 
-  static get className() { return this.name }
+  static get className() {
+    return this.name
+  }
 
   static get fields() {
     if (this.schema.field) return this.schema.field as YdbSchemaFieldType
@@ -37,7 +49,10 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static get primaryKey() {
     if (this._primaryKey) return this._primaryKey
 
-    const schemaOption = this.schema.field && this.schema.option ? this.schema.option as YdbSchemaOptionType : {}
+    const schemaOption =
+      this.schema.field && this.schema.option
+        ? (this.schema.option as YdbSchemaOptionType)
+        : {}
     if (schemaOption.primaryKey) {
       this._primaryKey = schemaOption.primaryKey
     } else {
@@ -50,15 +65,19 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static get tableName() {
     if (this._tableName) return this._tableName
 
-    const schemaOption = this.schema.field && this.schema.option ? this.schema.option as YdbSchemaOptionType : {}
+    const schemaOption =
+      this.schema.field && this.schema.option
+        ? (this.schema.option as YdbSchemaOptionType)
+        : {}
 
     if (schemaOption.tableName) {
       this._tableName = schemaOption.tableName
     } else {
-      this._tableName = this.className[0].toLowerCase()
-      + this.className
-        .slice(1, this.className.length)
-        .replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      this._tableName =
+        this.className[0].toLowerCase() +
+        this.className
+          .slice(1, this.className.length)
+          .replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
     }
 
     return this._tableName
@@ -70,9 +89,11 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     await ctx.sql(`UPDATE ${tableName} SET ${to} = ${from};`)
   }
 
-  static async count(options:
-  { where?: WhereType, field?: string, distinct: boolean, index?: string } | undefined
-  = { distinct: false }) {
+  static async count(
+    options:
+      | { where?: WhereType; field?: string; distinct: boolean; index?: string }
+      | undefined = { distinct: false },
+  ) {
     const { ctx, primaryKey, tableName } = this
 
     let cField = options?.field
@@ -102,10 +123,20 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   }
 
   static async find<T extends YdbModelType>(
-    this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string } = {},
+    this: new (
+      fields: Record<string, PrimitiveType>,
+    ) => T,
+    options: {
+      where?: WhereType
+      offset?: number
+      limit?: number
+      page?: number
+      order?: string
+      index?: string
+    } = {},
   ) {
-    const { ctx, tableName, fields } = this as unknown as YdbModelConstructorType
+    const { ctx, tableName, fields } =
+      this as unknown as YdbModelConstructorType
 
     let queryText = `SELECT * FROM ${tableName}`
 
@@ -138,15 +169,20 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
     const result = await ctx.sql(queryText, params)
 
-    const out: Array<T> = [];
-    (result as any[]).forEach((row: any) => {
+    const out: Array<T> = []
+    ;(result as any[]).forEach((row: any) => {
       out.push(new this(row))
     })
 
     return out
   }
 
-  static async findByPk<T extends YdbModelType>(this: new (fields: Record<string, PrimitiveType>)=> T, pk: string) {
+  static async findByPk<T extends YdbModelType>(
+    this: new (
+      fields: Record<string, PrimitiveType>,
+    ) => T,
+    pk: string,
+  ) {
     const { primaryKey } = this as unknown as YdbModelConstructorType
 
     const out = await YdbModel.find.bind(this)({
@@ -156,12 +192,14 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       limit: 1,
     })
 
-    return out[0] as unknown as T || null
+    return (out[0] as unknown as T) || null
   }
 
   static async findOne<T extends YdbModelType>(
-    this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, order?: string, index?: string } = { },
+    this: new (
+      fields: Record<string, PrimitiveType>,
+    ) => T,
+    options: { where?: WhereType; order?: string; index?: string } = {},
   ) {
     const out = await YdbModel.find.bind(this)({
       where: options.where,
@@ -170,10 +208,13 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       limit: 1,
     })
 
-    return out[0] as unknown as T || null
+    return (out[0] as unknown as T) || null
   }
 
-  static async update(data: Record<string, PrimitiveType>, options: { where: WhereType }) {
+  static async update(
+    data: Record<string, PrimitiveType>,
+    options: { where: WhereType },
+  ) {
     const { ctx, tableName } = this
 
     const setParams: Record<string, PrimitiveType> = {}
@@ -186,7 +227,10 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       setParams[paramName] = data[column]
     })
 
-    const { clause: whereClause, params: whereParams } = where(options.where, 'update')
+    const { clause: whereClause, params: whereParams } = where(
+      options.where,
+      'update',
+    )
 
     const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
 
@@ -196,7 +240,9 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     await ctx.sql(queryText, allParams)
   }
 
-  get model() { return (this.constructor as YdbModelConstructorType) }
+  get model() {
+    return this.constructor as YdbModelConstructorType
+  }
 
   async save() {
     const { ctx, tableName } = this.model
@@ -224,27 +270,36 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
     const { ctx, primaryKey, tableName } = this.model
     const pKeyValue = this[primaryKey] as PrimitiveType
 
-    await ctx.sql(`DELETE FROM ${tableName} WHERE ${primaryKey} = $primaryKey;`, {
-      primaryKey: pKeyValue,
-    })
+    await ctx.sql(
+      `DELETE FROM ${tableName} WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+      },
+    )
   }
 
   async increment(field: string, options: { by?: number } = {}) {
     const { ctx, primaryKey, tableName } = this.model
     const pKeyValue = this[primaryKey] as PrimitiveType
 
-    await ctx.sql(`UPDATE ${tableName}
+    await ctx.sql(
+      `UPDATE ${tableName}
         SET ${field} = ${field} + $incBy
-        WHERE ${primaryKey} = $primaryKey;`, {
-      primaryKey: pKeyValue,
-      incBy: options.by || 1,
-    })
+        WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+        incBy: options.by || 1,
+      },
+    )
 
-    const result = await ctx.sql(`SELECT ${field}
+    const result = await ctx.sql(
+      `SELECT ${field}
         FROM ${tableName}
-        WHERE ${primaryKey} = $primaryKey;`, {
-      primaryKey: pKeyValue,
-    })
+        WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+      },
+    )
 
     this[field] = result[0][field]
   }

@@ -9,13 +9,11 @@ declare module '..' {
 }
 
 const options: TestOptions = {
-  models: [
-    UserModel,
-  ],
+  models: [UserModel],
   sync: true,
 }
 
-test(import.meta, 'user', options, async (t, { db }) => {
+test('user', options, async (t, { db }) => {
   const User = db.model.User
 
   // test user created with prepared queries
@@ -37,7 +35,7 @@ test(import.meta, 'user', options, async (t, { db }) => {
 
   // counting with prepared queries
   const userCount = await User.count()
-  // COUNT returns BigInt in new YDB SDK
+  // check COUNT returns BigInt in new YDB SDK
   t.expect(userCount).toBe(2n)
 
   // updating with prepared queries
@@ -60,19 +58,25 @@ test(import.meta, 'user', options, async (t, { db }) => {
   t.expect(userOnlyOne?.name).toBe('user-check')
 
   // bulk update with prepared queries
-  await User.update({
-    name: 'user-one',
-  }, {
-    where: {
-      name: 'user-check',
+  await User.update(
+    {
+      name: 'user-one',
     },
-  })
+    {
+      where: {
+        name: 'user-check',
+      },
+    },
+  )
   userOne.name = 'user-one'
 
   // finding with sorting
   const usersCheck = await User.find({ order: 'name' })
   t.expect(usersCheck.length).toEqual(2)
-  t.expect(usersCheck.map((u) => u.toJson())).toEqual([userTwo.toJson(), userOne.toJson()])
+  t.expect(usersCheck.map((u) => u.toJson())).toEqual([
+    userTwo.toJson(),
+    userOne.toJson(),
+  ])
 
   // test finding with IN condition
   const usersByIds = await User.find({
@@ -102,7 +106,7 @@ test(import.meta, 'user', options, async (t, { db }) => {
   // test increment (if there is a numeric field)
   // assuming that the User model has a score field
   if ('score' in userOne) {
-    const initialScore = userOne.score as number || 0
+    const initialScore = (userOne.score as number) || 0
     await userOne.increment('score', { by: 5 })
     t.expect(userOne.score).toBe(initialScore + 5)
   }
