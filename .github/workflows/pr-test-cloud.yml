@@ -12,6 +12,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - name: install yc cli
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$HOME/.local/yc" -n
+          echo "$HOME/.local/yc" >> "$GITHUB_PATH"
       - run: |
           jq -r '.' > ./sa-key.json << EOF
           ${{ secrets.YC_SA_KEY }}

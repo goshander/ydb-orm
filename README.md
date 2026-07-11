@@ -76,6 +76,9 @@ await db.transaction(async (tx) => {
 });
 ```
 
+If an endpoint does not implement the Monitoring SelfCheck RPC, as with some
+cloud endpoints, `wait()` falls back to successful SDK discovery.
+
 - As a Fastify web server plugin
 
 You can also register the YDB ORM as a plugin in your Fastify application:
