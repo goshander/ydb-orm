@@ -123,9 +123,9 @@ const createTest = (testFunc: BunTest) =>
 export const test = Object.assign(createTest(bunTest.test), {
   skip: createTest(bunTest.test.skip),
   todo: createTest(bunTest.test.todo),
-  only: createTest(bunTest.test.only),
   if: (cond: boolean) => createTest(bunTest.test.if(cond)),
   skipIf: (cond: boolean) => createTest(bunTest.test.skipIf(cond)),
+  ...(process.env.CI ? {} : { only: createTest(bunTest.test.only) }),
 })
 
 export const it = test
