@@ -49,6 +49,7 @@ async function prepare<
     endpoint: process.env.YDB_ENDPOINT || '',
     database: process.env.YDB_DATABASE || '',
     token: process.env.YDB_TOKEN || '',
+    connectionString: process.env.YDB_CONNECTION_STRING || '',
 
     models: (options?.models || {}) as TModels,
 

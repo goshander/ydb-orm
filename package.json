@@ -27,6 +27,7 @@
     "test:coverage": "bun test --bail --timeout=30000 ./test/*.spec.ts --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage",
     "test:nodejs": "rm -rf ./dist && tsc -p tsconfig.json && node --test test/nodejs.test.spec.js",
     "test:smoke": "node scripts/smoke.mjs",
+    "test:cloud": "./scripts/cloud.sh",
     "test:docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
     "test:docker:nodejs": "docker compose --env-file .env.test run --build --rm test-nodejs",
     "test:docker:smoke": "docker compose --env-file .env.test run --build --rm test-smoke",

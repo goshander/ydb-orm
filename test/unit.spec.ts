@@ -21,6 +21,7 @@ import {
   exportOrder,
   exportWhere,
 } from '../lib/query.js'
+import { retrySchemaOperation } from '../lib/retry.js'
 import { sync } from '../lib/sync.js'
 import { YdbDataType } from '../lib/type.js'
 import { where } from '../lib/where.js'
@@ -855,6 +856,36 @@ test('unit - db wait ignores static storage pool', options, async (t) => {
 })
 
 test(
+  'unit - db wait accepts unsupported cloud self check',
+  options,
+  async (t) => {
+    const db = Ydb.init({ models: {} })
+    let attempts = 0
+    ;(db as unknown as { _createDriver: () => unknown })._createDriver =
+      () => ({
+        database: '/cloud',
+        ready: async () => {},
+        close: () => {},
+        createClient: () => ({
+          selfCheck: async () => {
+            attempts += 1
+            if (attempts === 1) throw 'temporarily unavailable'
+            throw {
+              path: '/Ydb.Monitoring.V1.MonitoringService/SelfCheck',
+              code: 12,
+              details: 'Unimplemented',
+            }
+          },
+        }),
+      })
+
+    await db.wait(1000)
+    t.expect(attempts).toBe(2)
+    await db.close()
+  },
+)
+
+test(
   'unit - db wait validates and enforces its timeout',
   options,
   async (t) => {
@@ -874,5 +905,59 @@ test(
       .expect(db.wait(-1))
       .rejects.toThrow('ydb: wait timeout must be a non-negative number')
     await db.close()
+  },
+)
+
+test('unit - schema operation rate limit is retried', options, async (t) => {
+  let attempts = 0
+  const logger = { debug: () => {} }
+
+  const result = await retrySchemaOperation(
+    async () => {
+      attempts += 1
+      if (attempts === 1) {
+        throw new Error(
+          'Scheme operation failed: Request exceeded a limit on the number of schema operations, try again later.',
+        )
+      }
+      return 'ready'
+    },
+    logger as never,
+    1000,
+  )
+
+  t.expect(result).toBe('ready')
+  t.expect(attempts).toBe(2)
+})
+
+test(
+  'unit - schema operation retry preserves other errors',
+  options,
+  async (t) => {
+    await t
+      .expect(
+        retrySchemaOperation(
+          async () => {
+            throw new Error('invalid schema')
+          },
+          { debug: () => {} } as never,
+          1000,
+        ),
+      )
+      .rejects.toThrow('invalid schema')
+
+    await t
+      .expect(
+        retrySchemaOperation(
+          async () => {
+            throw new Error(
+              'Request exceeded a limit on the number of schema operations, try again later',
+            )
+          },
+          { debug: () => {} } as never,
+          0,
+        ),
+      )
+      .rejects.toThrow('Request exceeded a limit')
   },
 )

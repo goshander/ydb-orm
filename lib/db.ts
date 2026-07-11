@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { SecureContextOptions } from 'node:tls'
-import { SelfCheck_Result } from '@ydbjs/api/monitoring'
 import type { CredentialsProvider } from '@ydbjs/auth'
 import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token'
 import { AnonymousCredentialsProvider } from '@ydbjs/auth/anonymous'
@@ -21,6 +20,7 @@ import { api, type YdbApi } from './api.js'
 import { SCHEMA_REJECTED_FIELD } from './constant.js'
 import { toYdbError } from './error.js'
 import { IamCredentialsProvider } from './iam.js'
+import { retrySchemaOperation } from './retry.js'
 import { sync } from './sync.js'
 import type {
   YdbConstructorType,
@@ -34,6 +34,7 @@ import type {
   YdbTransactionType,
   YdbType,
 } from './type.js'
+import { wait as waitForDriver } from './wait.js'
 
 export const Ydb: YdbConstructorType = class Ydb<
   TRegistry extends YdbModelRegistryType = YdbModelRegistryType,
@@ -210,39 +211,27 @@ export const Ydb: YdbConstructorType = class Ydb<
     sql: string,
     params?: Record<string, JSValue>,
   ) {
-    let query = executor(sql).timeout(this._timeout)
-    query = this.bindParams(query, params)
-
     if (this.debug) {
       this.logger.debug({ sql, params }, 'ydb: [DEBUG] sql query')
     }
 
-    // execute query and return first result set
-    try {
-      const result = await query
+    return retrySchemaOperation(
+      async () => {
+        let query = executor(sql).timeout(this._timeout)
+        query = this.bindParams(query, params)
 
-      // parse result not needed, except ascii type (String) from Buffer
-      // const queryResult: YdbQueryResult = []
-
-      // result[0].forEach((row) => {
-      //   const parsedRow: Record<string, PrimitiveType> = {}
-
-      //   Object.keys(row).forEach((key) => {
-      //     if (fields[key] === YdbDataType.ascii) {
-      //       parsedRow[key] = (row[key] as Buffer).toString('utf8')
-      //     } else {
-      //       parsedRow[key] = row[key]
-      //     }
-      //   })
-
-      //   queryResult.push(parsedRow)
-      // })
-
-      return result[0] as YdbQueryResult
-    } catch (error) {
-      const ydbError = toYdbError(error)
-      throw ydbError
-    }
+        // execute query and return first result set
+        try {
+          const result = await query
+          return result[0] as YdbQueryResult
+        } catch (error) {
+          const ydbError = toYdbError(error)
+          throw ydbError
+        }
+      },
+      this.logger,
+      this._timeout,
+    )
   }
 
   async sql(sql: string, params?: Record<string, JSValue>) {
@@ -279,64 +268,16 @@ export const Ydb: YdbConstructorType = class Ydb<
   }
 
   async wait(timeout = 10000) {
-    if (!Number.isFinite(timeout) || timeout < 0) {
-      throw new RangeError('ydb: wait timeout must be a non-negative number')
-    }
-
-    const deadline = Date.now() + timeout
-    let lastError: unknown
-    let attempt = 0
-
-    do {
-      const remaining = Math.max(1, deadline - Date.now())
-      const candidate = this._createDriver(remaining)
-
-      try {
-        const signal = AbortSignal.timeout(remaining)
-        await candidate.ready(signal)
-        const health = await api(candidate).selfCheck(signal)
-        if (health.selfCheckResult !== SelfCheck_Result.GOOD) {
-          throw new Error(
-            `ydb: database health check returned ${SelfCheck_Result[health.selfCheckResult]}`,
-          )
-        }
-
-        const databaseHealth = health.databaseStatus.find(
-          ({ name }) => name === candidate.database,
-        )
-        const writableStorageReady = databaseHealth?.storage?.pools.some(
-          (pool) => pool.id !== 'static' && pool.groups.length > 0,
-        )
-        if (!writableStorageReady) {
-          throw new Error('ydb: database storage pools are not ready')
-        }
-
-        this._driver.close()
-        this._driver = candidate
-        this._query = ydbQuery(candidate)
-        this._api = null
-        return
-      } catch (error) {
-        candidate.close()
-        lastError = error
-
-        const retryIn = deadline - Date.now()
-        if (retryIn <= 0) break
-
-        this.logger.debug(
-          { attempt: attempt + 1, error },
-          'ydb: database is not ready, retrying',
-        )
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.min(250, retryIn)),
-        )
-        attempt += 1
-      }
-    } while (Date.now() <= deadline)
-
-    throw new Error(`ydb: database was not ready within ${timeout}ms`, {
-      cause: lastError,
+    const driver = await waitForDriver({
+      createDriver: this._createDriver,
+      logger: this.logger,
+      timeout,
     })
+
+    this._driver.close()
+    this._driver = driver
+    this._query = ydbQuery(driver)
+    this._api = null
   }
 
   sync(): Promise<void> {
