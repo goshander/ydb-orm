@@ -15,7 +15,7 @@ jobs:
       - name: install yc cli
         run: |
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$HOME/.local/yc" -n
-          echo "$HOME/.local/yc" >> "$GITHUB_PATH"
+          echo "$HOME/.local/yc/bin" >> "$GITHUB_PATH"
       - run: yc version
       - run: |
           jq -r '.' > ./sa-key.json << EOF
