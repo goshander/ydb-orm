@@ -1,4 +1,4 @@
-import type { YdbErrorType } from './type'
+import type { YdbErrorType } from './type.js'
 
 export const toYdbError = (error: unknown) => {
   const ydbError = error as YdbErrorType

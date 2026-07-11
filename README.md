@@ -27,7 +27,8 @@ Or using yarn:
 You can use the YDB ORM in your Node.js application as follows:
 
 ```ts
-const { Ydb } = require('ydb-orm');
+import { Ydb } from 'ydb-orm';
+import { User } from './model/user';
 
 const db = Ydb.init({
   // [deprecated] endpoint: process.env.YDB_ENDPOINT,
@@ -39,14 +40,40 @@ const db = Ydb.init({
   token, // cloud IAM token
   meta, // metadata service (e.g., from Lambda)
 
-  // optional: list of YdbModels to load
-  models: [
-    User,
-  ],
+  // optional: object of YdbModels to load
+  models: { User },
   timeout: 2000,
 });
 
 Ydb.db; // singleton instance of database
+db.model.User; // typed model from the models object
+
+// wait until YDB reports GOOD health and a writable storage pool
+// - 10 seconds by default
+// useful while a local YDB instance is still starting
+await db.wait();
+
+const users = await db.model.User.findAll({
+  attributes: ['id', 'name'],
+  where: {
+    name: { like: 'alex' },
+  },
+  order: ['name', 'ASC'],
+});
+
+const usersFromCustomQuery = await db.model.User.query(
+  'SELECT * FROM user WHERE id = $id;',
+  {
+    id: 'user-id',
+  },
+);
+
+await db.transaction(async (tx) => {
+  await tx.sql('UPSERT INTO audit_log (id, message) VALUES ($id, $message);', {
+    id: 'event-1',
+    message: 'created user',
+  });
+});
 ```
 
 - As a Fastify web server plugin
@@ -56,7 +83,8 @@ You can also register the YDB ORM as a plugin in your Fastify application:
 Install fastify plugin with: `npm i fastify-ydb-orm`
 
 ```ts
-const { YdbFastify } = require('fastify-ydb-orm');
+import { YdbFastify } from 'fastify-ydb-orm';
+import { User } from './model/user';
 
 app.register(YdbFastify, {
   // [deprecated] endpoint: process.env.YDB_ENDPOINT,
@@ -65,10 +93,8 @@ app.register(YdbFastify, {
 
   // optional: same authentication options as the library
 
-  // optional: list of YdbModels to load
-  models: [
-    User,
-  ],
+  // optional: object of YdbModels to load
+  models: { User },
   timeout: 2000,
 
   sync: true, // enable automatic schema synchronization and migration
@@ -92,35 +118,36 @@ You can to set up the following environment variables to automatically load cred
 Here is an example of a user model that can be defined using the YDB ORM:
 
 ```ts
-import { YdbModel, YdbDataType } from 'ydb-orm';
 import { nanoid } from 'nanoid';
+import { YdbDataType, YdbModel, type YdbSchemaType } from 'ydb-orm';
 
-type Fields = {
+export type UserFields = {
   id: string,
   name: string,
   createdAt: Date,
 };
 
-export class User extends YdbModel implements Fields {
-  static schema = {
+export class User extends YdbModel<UserFields> {
+  static schema: YdbSchemaType = {
     id: YdbDataType.ascii,
     name: YdbDataType.ascii,
     createdAt: YdbDataType.date,
   };
 
-  id: Fields['id'];
-  name: Fields['name'];
-  createdAt: Fields['createdAt'];
-
-  constructor(fields: Partial<Fields>) {
+  constructor(fields: Partial<UserFields> = {}) {
     super(fields);
+
     const { name, id, createdAt } = fields;
     this.id = id || nanoid();
     this.name = name || '';
     this.createdAt = createdAt || new Date();
   }
 }
+
+export interface User extends UserFields {}
 ```
+
+`YdbModel<UserFields>` is used by `build`, `create`, `find`, `findAll`, `findOne`, `count`, `update` and `destroy`, so query field names are checked by TypeScript.
 
 ---
 
@@ -133,6 +160,25 @@ You can easily run tests using Docker. No need to set up the Docker environment 
 Once the tests are completed, you can down the docker containers with:
 
 `npm run test-docker-clean`
+
+The compiled Node.js package smoke test is also available as an isolated Docker service:
+
+`docker compose run --rm package-smoke`
+
+## Local Quality Checks ✅
+
+Run the same checks as CI before opening a PR:
+
+```sh
+npm run lint
+npm run typecheck
+npm run typecheck:test
+bun run test
+npm run test-nodejs
+bun run test:coverage
+```
+
+`bun run test:coverage` writes an lcov report to `coverage/` and enforces 100% line/function coverage for package source files (`index.ts` and `lib/**/*.ts`).
 
 ---
 

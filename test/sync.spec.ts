@@ -1,12 +1,12 @@
 import { nanoid } from 'nanoid'
 
-import { YdbDataType, YdbModel, type YdbSchemaType } from '..'
-import { type TestOptions, test } from '../test'
+import { YdbDataType, YdbModel, type YdbSchemaType } from '../index.js'
+import { type TestOptions, test } from '../test.js'
 
-const options: TestOptions = {
-  models: [],
+const options = {
+  models: {},
   sync: false,
-}
+} satisfies TestOptions
 
 // basic table creation with sync
 test('sync - create table with basic fields', options, async (t, { db }) => {
@@ -311,7 +311,7 @@ test('sync - drop column from table', options, async (t, { db }) => {
   const result = await TestModelV2.findByPk(instance.id)
   t.expect(result).toBeTruthy()
   t.expect(result?.name).toBe('test')
-  t.expect('deprecated' in result!).toBe(false)
+  t.expect(result ? 'deprecated' in result : true).toBe(false)
 
   await instance.delete()
 })
@@ -514,7 +514,7 @@ test(
     const result = await TestModelV2.findByPk(instance.id)
     t.expect(result).toBeTruthy()
     t.expect(result?.newName).toBe('test-value')
-    t.expect('oldName' in result!).toBe(false)
+    t.expect(result ? 'oldName' in result : true).toBe(false)
 
     await db.sql(`DELETE FROM ${tableName} WHERE id = $id;`, {
       id: instance.id,
@@ -617,8 +617,8 @@ test('sync - strict mode drops extra fields', options, async (t, { db }) => {
   const result = await TestModelV2.findByPk(instance.id)
   t.expect(result).toBeTruthy()
   t.expect(result?.name).toBe('John Doe')
-  t.expect('email' in result!).toBe(false)
-  t.expect('phone' in result!).toBe(false)
+  t.expect(result ? 'email' in result : true).toBe(false)
+  t.expect(result ? 'phone' in result : true).toBe(false)
 
   await db.sql(`DELETE FROM ${tableName} WHERE id = $id;`, { id: instance.id })
 })

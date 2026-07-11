@@ -1,5 +1,10 @@
 import { anyUnpack } from '@bufbuild/protobuf/wkt'
 import {
+  MonitoringServiceDefinition,
+  type SelfCheckResult,
+  SelfCheckResultSchema,
+} from '@ydbjs/api/monitoring'
+import {
   type AlterTableRequest,
   type AlterTableResponse,
   AlterTableResponseSchema,
@@ -12,7 +17,7 @@ import {
 } from '@ydbjs/api/table'
 import type { Driver } from '@ydbjs/core'
 
-import { toYdbError } from './error'
+import { toYdbError } from './error.js'
 
 export const api = (driver: Driver) => {
   const tableClient = driver.createClient(TableServiceDefinition)
@@ -61,7 +66,7 @@ export const api = (driver: Driver) => {
       path: `/${driver.database}/${tableName}`,
     })
 
-    if (response.operation?.issues.length) {
+    if (response.operation?.issues?.length) {
       const ydbError = toYdbError(response.operation)
       throw ydbError
     }
@@ -77,10 +82,43 @@ export const api = (driver: Driver) => {
     return result
   }
 
+  const selfCheck = async (signal?: AbortSignal) => {
+    const monitoringClient = driver.createClient(MonitoringServiceDefinition)
+    const response = await monitoringClient.selfCheck(
+      { returnVerboseStatus: true, maximumLevel: 10 },
+      { signal },
+    )
+
+    if (response.operation?.issues?.length) {
+      throw toYdbError(response.operation)
+    }
+
+    if (!response.operation?.result) {
+      throw new Error('ydb: self check returned no result')
+    }
+
+    let result: SelfCheckResult | undefined
+
+    try {
+      result = anyUnpack(response.operation.result, SelfCheckResultSchema) as
+        | SelfCheckResult
+        | undefined
+    } catch {
+      throw new Error('ydb: invalid self check result')
+    }
+
+    if (!result) {
+      throw new Error('ydb: invalid self check result')
+    }
+
+    return result
+  }
+
   return {
     alterTable,
     createTable,
     describeTable,
+    selfCheck,
   }
 }
 

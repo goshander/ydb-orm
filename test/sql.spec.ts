@@ -1,11 +1,11 @@
 import { nanoid } from 'nanoid'
 
-import { type TestOptions, test } from '../test'
+import { type TestOptions, test } from '../test.js'
 
-const options: TestOptions = {
-  models: [],
+const options = {
+  models: {},
   sync: false,
-}
+} satisfies TestOptions
 
 // generate table name with only alphanumeric characters (no hyphens) and non number from start
 const generateTableName = () => `sql_${nanoid().replace(/-/g, '_')}`
@@ -197,6 +197,104 @@ test('sql - parameter with $ prefix in key', options, async (t, { db }) => {
   const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = 'test-1';`)
   t.expect(result.length).toBe(1)
   t.expect(result[0].name).toBe('Test User')
+})
+
+test('sql - params can be reused in one query', options, async (t, { db }) => {
+  const result = await db.sql(
+    'SELECT $value AS firstValue, $value AS secondValue;',
+    {
+      $value: 'same-param',
+    },
+  )
+
+  t.expect(result.length).toBe(1)
+  t.expect(result[0].firstValue).toBe('same-param')
+  t.expect(result[0].secondValue).toBe('same-param')
+})
+
+test('sql - params object is not mutated', options, async (t, { db }) => {
+  const params = {
+    $value: 'immutable-param',
+  }
+
+  await db.sql('SELECT $value AS value;', params)
+
+  t.expect(params).toEqual({
+    $value: 'immutable-param',
+  })
+})
+
+test('sql - transaction commits queries', options, async (t, { db }) => {
+  const tableName = generateTableName()
+
+  t.teardown(async () => {
+    await db.sql(`DROP TABLE ${tableName};`)
+  })
+
+  await db.sql(`
+    CREATE TABLE ${tableName} (
+      id String,
+      name Utf8,
+      PRIMARY KEY (id)
+    );
+  `)
+
+  const userId = nanoid()
+
+  await db.transaction(async (tx) => {
+    await tx.sql(`UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`, {
+      id: userId,
+      name: 'transaction-user',
+    })
+  })
+
+  const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = $id;`, {
+    id: userId,
+  })
+
+  t.expect(result.length).toBe(1)
+  t.expect(result[0].name).toBe('transaction-user')
+})
+
+test('sql - transaction rolls back on error', options, async (t, { db }) => {
+  const tableName = generateTableName()
+
+  t.teardown(async () => {
+    await db.sql(`DROP TABLE ${tableName};`)
+  })
+
+  await db.sql(`
+    CREATE TABLE ${tableName} (
+      id String,
+      name Utf8,
+      PRIMARY KEY (id)
+    );
+  `)
+
+  const userId = nanoid()
+
+  let transactionFailed = false
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.sql(`UPSERT INTO ${tableName} (id, name) VALUES ($id, $name);`, {
+        id: userId,
+        name: 'rollback-user',
+      })
+
+      throw new Error('rollback transaction')
+    })
+  } catch (error) {
+    transactionFailed = true
+    t.expect((error as Error).message).toContain('Transaction failed')
+  }
+
+  const result = await db.sql(`SELECT * FROM ${tableName} WHERE id = $id;`, {
+    id: userId,
+  })
+
+  t.expect(transactionFailed).toBe(true)
+  t.expect(result.length).toBe(0)
 })
 
 test('sql - different data types', options, async (t, { db }) => {
@@ -468,7 +566,7 @@ test(
   },
 )
 
-test.only('sql - json field', options, async (t, { db }) => {
+test('sql - json field', options, async (t, { db }) => {
   const tableName = generateTableName()
 
   t.teardown(async () => {

@@ -1,0 +1,30 @@
+name: PR Node Built Matrix
+
+on:
+  pull_request:
+
+jobs:
+  node-built:
+    name: Node Built Library Tests on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: docker compose up -d database
+        env:
+          YDB_HOSTNAME: localhost
+      - run: sleep 15
+      - run: npm run test-node-built
+        env:
+          YDB_ENDPOINT: grpc://localhost:2136
+          YDB_DATABASE: /local
+      - if: always()
+        run: docker compose down -v

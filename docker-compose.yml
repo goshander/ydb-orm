@@ -20,9 +20,58 @@ services:
     networks:
       - local
 
+  node-test:
+    command: npm run test-node-built
+    build:
+      context: ./
+      dockerfile: ./docker/node-test.dockerfile
+      platforms:
+        - ${NODE_DOCKER_PLATFORM:-linux/amd64}
+    depends_on:
+      - database
+    platform: ${NODE_DOCKER_PLATFORM:-linux/amd64}
+    restart: "no"
+    image: ydb-orm:node-test
+    environment:
+      - NODE_ENV=test
+
+      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_DATABASE=/local
+
+      - YDB_CERTS=/ydb_certs
+    volumes:
+      - ydb_certs:/ydb_certs
+    networks:
+      - local
+
+  package-smoke:
+    command: npm run test-package-smoke
+    build:
+      context: ./
+      dockerfile: ./docker/package-smoke.dockerfile
+      platforms:
+        - ${NODE_DOCKER_PLATFORM:-linux/amd64}
+    depends_on:
+      - database
+    platform: ${NODE_DOCKER_PLATFORM:-linux/amd64}
+    restart: "no"
+    image: ydb-orm:package-smoke
+    environment:
+      - NODE_ENV=test
+
+      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_DATABASE=/local
+
+      - YDB_CERTS=/ydb_certs
+    volumes:
+      - ydb_certs:/ydb_certs
+    networks:
+      - local
+
   database:
-    image: ydbplatform/local-ydb:25.3.1
-    hostname: ${YDB_HOSTNAME:-localhost}
+    image: ydbplatform/local-ydb:26.2.1
+    platform: linux/amd64
+    hostname: ${YDB_HOSTNAME:-database}
     environment:
       - YDB_USE_IN_MEMORY_PDISKS=true
       - YDB_DEFAULT_LOG_LEVEL=WARN

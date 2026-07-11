@@ -1,4 +1,4 @@
-import { DATA_TYPE_KEY_TO_ID_MAP } from './constant'
+import { DATA_TYPE_KEY_TO_ID_MAP } from './constant.js'
 import type {
   YdbColumnType,
   YdbDataTypeId,
@@ -9,7 +9,7 @@ import type {
   YdbSchemaFieldType,
   YdbSchemaOptionType,
   YdbType,
-} from './type'
+} from './type.js'
 
 type TableStructure = Record<string, YdbDataTypeId>
 type IndexStructure = Record<string, string>
@@ -250,7 +250,9 @@ const alterTable = async (
 
   for (let i = 0; i < renamedFields.length; i += 1) {
     const [newField, fieldType] = renamedFields[i]
-    const oldField = fieldType.renamed!
+    const oldField = fieldType.renamed
+
+    if (!oldField) continue
 
     try {
       // add new column
@@ -334,7 +336,7 @@ export const sync = async (ctx: YdbType) => {
     const tableIndexes = (tableStructure?.indexes || []) as Array<YdbIndexType>
 
     tableIndexes.forEach((index) => {
-      if (index.name && index.indexColumns && index.indexColumns[0]) {
+      if (index.name && index.indexColumns?.[0]) {
         indexes[index.indexColumns[0]] = index.name
       }
     })

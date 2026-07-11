@@ -1,0 +1,25 @@
+name: PR Coverage
+
+on:
+  pull_request:
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: docker compose up -d database
+        env:
+          YDB_HOSTNAME: localhost
+      - run: sleep 15
+      - run: bun run test:coverage
+        env:
+          YDB_ENDPOINT: grpc://localhost:2136
+          YDB_DATABASE: /local
+      - if: always()
+        run: docker compose down -v

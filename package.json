@@ -11,18 +11,29 @@
     "url": "https://github.com/goshander/ydb-orm"
   },
   "license": "see in LICENSE",
-  "version": "2.6.2",
+  "version": "3.0.1",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test-debug": "tap --ts -O -T --node-arg=--inspect-brk --bail --jobs=1 --reporter=list --no-coverage test/**/*.spec.ts",
-    "test": "bun test --bail ./test/*.spec.ts",
-    "test-js": "rm -rf ./dist && npm run build-test && tap --bail --jobs=1 --reporter=list --no-coverage dist/test/**/*.spec.js",
+    "test": "bun test --bail --timeout=30000 ./test/*.spec.ts",
+    "test:unit": "bun test --bail --timeout=30000 ./test/unit.spec.ts",
+    "test:coverage": "bun test --bail --timeout=30000 ./test/*.spec.ts --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage && node scripts/check-coverage.mjs",
+    "test-nodejs": "rm -rf ./dist && tsc -p tsconfig.json && node --test test/node-built.spec.js",
+    "test-package-smoke": "node scripts/package-smoke.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "test-docker": "docker compose --env-file .env.test build test && docker compose --env-file .env.test run --rm test",
     "test-docker-clean": "docker compose --env-file .env.test down -v --rmi local",
     "build": "rm -rf ./dist && tsc -p tsconfig.json",
     "build-test": "rm -rf ./dist && tsc -p tsconfig.test.json",
-    "docker-db-up": "docker compose up -d database",
+    "docker-db-up": "YDB_HOSTNAME=localhost docker compose up -d database",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
