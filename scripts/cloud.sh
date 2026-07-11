@@ -23,7 +23,7 @@ echo "yc profile name: ${YC_PROFILE_NAME}"
 echo "yc profile exists: ${YC_PROFILE_EXISTS}"
 echo ""
 
-if [ "${YC_PROFILE_EXISTS}" != "true" ] && [ ! -z "${PROFILE_NAME}" ]; then
+if [ "${YC_PROFILE_EXISTS}" != "true" ] && [ ! -z "${YC_PROFILE_NAME}" ]; then
   echo "yc profile [${YC_PROFILE_NAME}] does not exists, creating..."
 
   if [ -z "${YC_CLOUD_ID}" ]; then
