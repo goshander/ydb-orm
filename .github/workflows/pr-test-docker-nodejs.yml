@@ -1,0 +1,17 @@
+name: Test Docker Node.js
+
+on:
+  pull_request:
+
+jobs:
+  run:
+    name: test-docker-nodejs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run test:docker:nodejs
+      - if: always()
+        run: npm run test:docker:clean

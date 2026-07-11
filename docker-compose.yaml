@@ -13,47 +13,33 @@ services:
 
       - YDB_ENDPOINT=grpc://database:2136
       - YDB_DATABASE=/local
-
-      - YDB_CERTS=/ydb_certs
-    volumes:
-      - ydb_certs:/ydb_certs
     networks:
       - local
 
-  node-test:
-    command: npm run test-node-built
+  test-nodejs:
+    command: npm run test:nodejs
     build:
       context: ./
-      dockerfile: ./docker/node-test.dockerfile
-      platforms:
-        - ${NODE_DOCKER_PLATFORM:-linux/amd64}
+      dockerfile: ./docker/test.nodejs.dockerfile
     depends_on:
       - database
-    platform: ${NODE_DOCKER_PLATFORM:-linux/amd64}
     restart: "no"
-    image: ydb-orm:node-test
+    image: ydb-orm:test-nodejs
     environment:
       - NODE_ENV=test
 
       - YDB_ENDPOINT=grpc://database:2136
       - YDB_DATABASE=/local
-
-      - YDB_CERTS=/ydb_certs
-    volumes:
-      - ydb_certs:/ydb_certs
     networks:
       - local
 
-  package-smoke:
-    command: npm run test-package-smoke
+  test-smoke:
+    command: npm run test:smoke
     build:
       context: ./
-      dockerfile: ./docker/package-smoke.dockerfile
-      platforms:
-        - ${NODE_DOCKER_PLATFORM:-linux/amd64}
+      dockerfile: ./docker/test.nodejs.dockerfile
     depends_on:
       - database
-    platform: ${NODE_DOCKER_PLATFORM:-linux/amd64}
     restart: "no"
     image: ydb-orm:package-smoke
     environment:
@@ -61,10 +47,6 @@ services:
 
       - YDB_ENDPOINT=grpc://database:2136
       - YDB_DATABASE=/local
-
-      - YDB_CERTS=/ydb_certs
-    volumes:
-      - ydb_certs:/ydb_certs
     networks:
       - local
 
@@ -79,17 +61,9 @@ services:
       - GRPC_PORT=2136
       - MON_PORT=8765
     restart: "no"
-    volumes:
-      - ydb_certs:/ydb_certs
-    ports:
-      - 2136:2136
-      - 8765:8765
     networks:
       - local
 
 networks:
   local:
     driver: bridge
-
-volumes:
-  ydb_certs:
