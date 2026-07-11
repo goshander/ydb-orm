@@ -57,9 +57,13 @@ export interface User extends UserFields {}
 - Validate every SQL identifier derived from a model or query option.
 - Add tests for every public ORM method, query operator, retry policy, or schema
   behavior change.
-- Keep package source at 100% line/function coverage where supported by Bun's
-  coverage output.
+- Keep package source at 100% line/function coverage. The coverage command must
+  fail when `index.ts` or any `lib/*.ts` file drops below that threshold.
 - Do not edit generated `dist` files manually.
+- Never enable shell tracing around credentials or tokens.
+- Never interpolate repository secrets directly into generated shell source.
+- Runtime model input must be restricted to registered schema fields.
+- Bulk update and destroy must reject empty `where` clauses.
 
 ## Required Checks
 
@@ -115,7 +119,7 @@ npm run test:docker:clean
 
 The shared integration helper in `test.ts` initializes models, calls `db.wait()`,
 optionally synchronizes schemas, and closes the connection after each test.
-`YDB_TEST_WAIT_TIMEOUT` controls its startup deadline and defaults to 60 seconds.
+`YDB_TEST_WAIT_TIMEOUT` controls its startup deadline and defaults to 30 seconds.
 
 ## YDB Readiness and Retries
 
@@ -208,6 +212,9 @@ CI is intentionally split into independent workflow files/jobs:
 - host and Docker Node/package smoke tests.
 
 Every workflow that starts YDB must clean it up in an `always()` step.
+All workflows use `actions/checkout@v6`. Bun test failures are emitted as native
+GitHub annotations, while test and coverage totals are written to native job
+summaries.
 
 ## Sequelize-Inspired Feature Status
 

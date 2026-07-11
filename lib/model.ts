@@ -31,7 +31,10 @@ export class YdbModel<TFields extends object = Record<string, PrimitiveType>>
   [field: string]: unknown
 
   constructor(fields: Partial<Record<string, PrimitiveType>> = {}) {
+    const schema = (this.constructor as YdbModelConstructorType).fields
+
     Object.keys(fields).forEach((key) => {
+      assertSchemaField(schema, key)
       this[key] = fields[key]
     })
   }
@@ -330,6 +333,10 @@ export class YdbModel<TFields extends object = Record<string, PrimitiveType>>
       'update',
     )
 
+    if (!whereClause) {
+      throw new Error('ydb: update requires a non-empty where clause')
+    }
+
     const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
 
     // Объединяем все параметры
@@ -401,7 +408,12 @@ export class YdbModel<TFields extends object = Record<string, PrimitiveType>>
   }
 
   async update(fields: Partial<TFields>) {
-    Object.assign(this, fields)
+    const schema = this.model.fields
+    const fieldNames = Object.keys(fields)
+    fieldNames.forEach((field) => assertSchemaField(schema, field))
+    fieldNames.forEach((field) => {
+      this[field] = fields[field as keyof TFields]
+    })
     await this.save()
     return this
   }

@@ -49,7 +49,7 @@ export class IamCredentialsProvider extends CredentialsProvider {
     const jwtJose = new SignJWT({
       aud: `https://${this.#iamEndpoint}/iam/v1/tokens`,
       iss: this.#serviceAccountId,
-      iat: now,
+      iat: Math.floor(now / 1000),
       exp: Math.floor(expiredAt / 1000),
     })
     jwtJose.setProtectedHeader({

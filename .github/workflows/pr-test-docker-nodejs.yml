@@ -3,12 +3,15 @@ name: Test Docker Node.js
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   run:
     name: test-docker-nodejs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 24

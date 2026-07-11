@@ -3,6 +3,9 @@ name: Test Node.js
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   run:
     name: test-nodejs
@@ -12,7 +15,7 @@ jobs:
       matrix:
         node-version: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}

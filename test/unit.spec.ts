@@ -175,6 +175,43 @@ test(
   },
 )
 
+test('unit - model rejects fields outside its schema', options, async (t) => {
+  class SecureModel extends YdbModel<{ id: string; name: string }> {
+    static override schema = {
+      id: YdbDataType.ascii,
+      name: YdbDataType.ascii,
+    }
+  }
+
+  const statements: string[] = []
+  SecureModel.setCtx({
+    sql: async (sql: string) => {
+      statements.push(sql)
+      return []
+    },
+  } as never)
+
+  t.expect(
+    expectThrow(
+      () =>
+        new SecureModel(
+          JSON.parse('{"id":"safe","__proto__":{"polluted":true}}'),
+        ),
+    ).message,
+  ).toContain('unknown schema field [__proto__]')
+
+  const model = new SecureModel({ id: 'safe', name: 'before' })
+  await t
+    .expect(model.update({ save: 'replaced' } as never))
+    .rejects.toThrow('unknown schema field [save]')
+  t.expect(statements).toHaveLength(0)
+
+  await t
+    .expect(SecureModel.update({ name: 'after' }, { where: {} }))
+    .rejects.toThrow('update requires a non-empty where clause')
+  t.expect(statements).toHaveLength(0)
+})
+
 test(
   'unit - exportWhere supports empty, null and skipped branches',
   options,

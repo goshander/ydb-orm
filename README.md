@@ -5,189 +5,245 @@
 Minimal ORM library for YDB database designed for rapid development of serverless applications
 
 ## Features ⭐
+
 - Lightweight and easy-to-use methods for managing YDB databases
-- Supports data models with automatic migrations and schema synchronization
-- Compatible with the Fastify web server framework
+- Model fields and query options inferred from TypeScript schemas
+- Active-record CRUD helpers and hydrated custom queries
+- Parameterized YQL generation with runtime identifier validation
+- Schema synchronization for tables, columns, indexes, renames, and strict mode
+- Raw SQL and transaction support
+- Local and Yandex Cloud readiness handling
+- Native Node.js ESM package with tested CommonJS loading
 
 ---
+
+## Requirements 🛠️
+
+- Node.js 20.19 or newer for the published package.
+- Bun 1.3.14 or newer for repository tests and development commands.
+- A reachable YDB database.
 
 ## Installation 📦
-To install the library, run:
 
-`npm install ydb-orm`
-
-Or using yarn:
-
-`yarn add ydb-orm`
-
-## Usage 📚
-
-- As a Library
-
-You can use the YDB ORM in your Node.js application as follows:
-
-```ts
-import { Ydb } from 'ydb-orm';
-import { User } from './model/user';
-
-const db = Ydb.init({
-  // [deprecated] endpoint: process.env.YDB_ENDPOINT,
-  // [deprecated] database: process.env.YDB_DATABASE,
-  connectionString: process.env.YDB_CONNECTION_STRING,
-
-  // optional: authentication method
-  credential, // service account credential
-  token, // cloud IAM token
-  meta, // metadata service (e.g., from Lambda)
-
-  // optional: object of YdbModels to load
-  models: { User },
-  timeout: 2000,
-});
-
-Ydb.db; // singleton instance of database
-db.model.User; // typed model from the models object
-
-// wait until YDB reports GOOD health and a writable storage pool
-// - 10 seconds by default
-// useful while a local YDB instance is still starting
-await db.wait();
-
-const users = await db.model.User.findAll({
-  attributes: ['id', 'name'],
-  where: {
-    name: { like: 'alex' },
-  },
-  order: ['name', 'ASC'],
-});
-
-const usersFromCustomQuery = await db.model.User.query(
-  'SELECT * FROM user WHERE id = $id;',
-  {
-    id: 'user-id',
-  },
-);
-
-await db.transaction(async (tx) => {
-  await tx.sql('UPSERT INTO audit_log (id, message) VALUES ($id, $message);', {
-    id: 'event-1',
-    message: 'created user',
-  });
-});
+```sh
+npm install ydb-orm
 ```
 
-If an endpoint does not implement the Monitoring SelfCheck RPC, as with some
-cloud endpoints, `wait()` falls back to successful SDK discovery.
+## Define A Model 🧑‍💻
 
-- As a Fastify web server plugin
-
-You can also register the YDB ORM as a plugin in your Fastify application:
-
-Install fastify plugin with: `npm i fastify-ydb-orm`
+Define the field shape once, pass it to `YdbModel`, and merge the interface so
+instance properties remain typed without repeating declarations in the class.
 
 ```ts
-import { YdbFastify } from 'fastify-ydb-orm';
-import { User } from './model/user';
-
-app.register(YdbFastify, {
-  // [deprecated] endpoint: process.env.YDB_ENDPOINT,
-  // [deprecated] database: process.env.YDB_DATABASE,
-  connectionString: process.env.YDB_CONNECTION_STRING,
-
-  // optional: same authentication options as the library
-
-  // optional: object of YdbModels to load
-  models: { User },
-  timeout: 2000,
-
-  sync: true, // enable automatic schema synchronization and migration
-});
-
-// no need to create a connection explicitly in Fastify mode
-```
-
-
-## Environment Variables 🌍
-
-You can to set up the following environment variables to automatically load credentials:
-
-`YDB_SA_KEY` - Path to the service account credential JSON file
-`YDB_CERTS` - Path to the YDB connection certificates. 🔒
-
----
-
-## Example Model 🧑‍💻
-
-Here is an example of a user model that can be defined using the YDB ORM:
-
-```ts
-import { nanoid } from 'nanoid';
-import { YdbDataType, YdbModel, type YdbSchemaType } from 'ydb-orm';
+import { nanoid } from 'nanoid'
+import { YdbDataType, YdbModel, type YdbSchemaType } from 'ydb-orm'
 
 export type UserFields = {
-  id: string,
-  name: string,
-  createdAt: Date,
-};
+  id: string
+  name: string
+  createdAt: Date
+}
 
 export class User extends YdbModel<UserFields> {
   static schema: YdbSchemaType = {
     id: YdbDataType.ascii,
     name: YdbDataType.ascii,
     createdAt: YdbDataType.date,
-  };
+  }
 
   constructor(fields: Partial<UserFields> = {}) {
-    super(fields);
+    super(fields)
 
-    const { name, id, createdAt } = fields;
-    this.id = id || nanoid();
-    this.name = name || '';
-    this.createdAt = createdAt || new Date();
+    this.id = fields.id || nanoid()
+    this.name = fields.name || ''
+    this.createdAt = fields.createdAt || new Date()
   }
 }
 
 export interface User extends UserFields {}
 ```
 
-`YdbModel<UserFields>` is used by `build`, `create`, `find`, `findAll`, `findOne`, `count`, `update` and `destroy`, so query field names are checked by TypeScript.
+Runtime input is restricted to fields declared by the model schema. Unknown
+fields are rejected even when JavaScript callers bypass TypeScript.
 
----
+## Connect 🔌
 
-## Running Tests with Docker 🐳
+Register models as an object to infer the concrete model registry:
 
-You can easily run tests using Docker. No need to set up the Docker environment variables. Just using the following command:
+```ts
+import { Ydb } from 'ydb-orm'
+import { User } from './model/user.js'
 
-`npm run test-docker`
+const db = Ydb.init({
+  connectionString: process.env.YDB_CONNECTION_STRING,
+  token: process.env.YDB_TOKEN,
+  models: { User },
+  timeout: 10_000,
+})
 
-Once the tests are completed, you can down the docker containers with:
+await db.wait()
 
-`npm run test-docker-clean`
+const UserModel = db.model.User
+```
 
-The compiled Node.js package smoke test is also available as an isolated Docker service:
+`connectionString` is the preferred connection option. `endpoint` and
+`database` are also supported separately. Without connection options the local
+default is `grpc://localhost:2136?database=/local`.
 
-`docker compose run --rm package-smoke`
+Authentication options are evaluated in this order:
 
-## Local Quality Checks ✅
+1. `credential`: service-account credentials for the built-in IAM provider.
+2. `token`: an existing IAM/access token.
+3. `meta: true`: YDB metadata credentials.
+4. Anonymous credentials.
 
-Run the same checks as CI before opening a PR:
+If no token is provided, the library also reads service-account JSON from
+`./ydb-sa.json` or from the `YDB_SA_KEY` environment variable. `YDB_SA_KEY`
+must contain the JSON value itself, not a file path.
+
+When `YDB_CERTS` points to a directory, the library loads `ca.pem`, `key.pem`,
+and `cert.pem` from it.
+
+### Readiness
+
+`db.wait(timeout)` defaults to 10 seconds. It waits for SDK Discovery, a `GOOD`
+verbose SelfCheck result, and a writable non-static storage pool. Cloud
+endpoints that return gRPC `UNIMPLEMENTED` specifically for Monitoring
+SelfCheck fall back to successful Discovery.
+
+## Query Models 📚
+
+```ts
+const user = await User.create({ name: 'Ada' })
+
+const users = await User.findAll({
+  attributes: ['id', 'name'],
+  where: {
+    and: [
+      { name: { like: 'Ada' } },
+      { id: { notIn: ['disabled-id'] } },
+    ],
+  },
+  order: ['name', 'ASC'],
+  limit: 20,
+  page: 1,
+})
+
+const found = await User.findByPk(user.id)
+await user.update({ name: 'Ada Lovelace' })
+await user.reload()
+await user.delete()
+```
+
+Supported query operators include `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`,
+`notIn`, `like`, `notLike`, `is`, `isNot`, `not`, `between`, `notBetween`, and
+nested `and`/`or` groups.
+
+Bulk mutation requires a non-empty `where` clause:
+
+```ts
+await User.update({ name: 'inactive' }, { where: { id: 'user-id' } })
+await User.destroy({ where: { id: 'user-id' } })
+```
+
+Custom YQL can hydrate model instances:
+
+```ts
+const users = await User.query(
+  'SELECT * FROM user WHERE id = $id;',
+  { id: 'user-id' },
+)
+```
+
+## Raw SQL And Transactions 💾
+
+```ts
+const rows = await db.sql('SELECT $value AS value;', { value: 42 })
+
+await db.transaction(async (tx) => {
+  await tx.sql(
+    'UPSERT INTO audit_log (id, message) VALUES ($id, $message);',
+    { id: 'event-1', message: 'created user' },
+  )
+})
+```
+
+Values must be passed through `params`. Raw SQL strings and schema identifiers
+are trusted developer input and are not sanitized by `db.sql()` or
+`Model.query()`.
+
+## Schema Synchronization 🔄
+
+```ts
+await db.wait(60_000)
+await db.sync()
+```
+
+Synchronization can create tables, add or drop columns and indexes, copy renamed
+fields, and remove undeclared fields in strict mode. These operations can be
+destructive. The current sync implementation is a development/schema alignment
+tool, not a versioned production migration system. Review schemas and back up
+data before enabling destructive options.
+
+Cloud schema-operation throttling is retried with bounded exponential backoff
+within the configured database timeout.
+
+## Security Notes 🔒
+
+- Model-generated identifiers are validated against the registered schema.
+- Values are bound as YDB parameters rather than interpolated into YQL.
+- Bulk update and destroy reject empty `where` clauses.
+- `debug: true` logs SQL and parameter values. Do not enable it when parameters
+  may contain credentials, personal data, or other secrets.
+- Keep service-account files outside version control and restrict file
+  permissions.
+
+## Examples 🧪
+
+- [`example/model.ts`](./example/model.ts): typed model definition.
+- [`example/query.ts`](./example/query.ts): typed CRUD/query usage.
+
+## Development 🛠️
+
+Fast checks that do not require YDB:
 
 ```sh
 npm run lint
 npm run typecheck
 npm run typecheck:test
 bun run test:unit
-bun run test
-npm run test-nodejs
-bun run test:coverage
 ```
 
-`bun run test:coverage` writes an lcov report to `coverage/` and enforces 100% line/function coverage for package source files (`index.ts` and `lib/**/*.ts`).
+Start and stop a host-accessible local YDB:
 
-Unit tests use mocked Driver/API boundaries and run without YDB. The remaining
-test suites are integration tests and require a running database.
+```sh
+npm run docker:db-up
+npm run docker:db-down
+```
 
----
+Integration and package checks:
+
+```sh
+bun run test
+bun run test:coverage
+npm run test:nodejs
+npm run test:smoke
+```
+
+Containerized equivalents:
+
+```sh
+npm run test:docker
+npm run test:docker:nodejs
+npm run test:docker:smoke
+npm run test:docker:clean
+```
+
+`bun run test:coverage` generates `coverage/lcov.info` and enforces 100% line
+and function coverage for `index.ts` and every `lib/*.ts` source file.
+
+`npm run test:cloud` requires `yc`, `jq`, a configured Yandex Cloud profile or
+service-account key, and access to the configured test database.
 
 ## License 📜
 
