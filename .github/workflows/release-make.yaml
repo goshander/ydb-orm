@@ -109,7 +109,7 @@ jobs:
               head: process.env.BRANCH,
               base: 'main',
               body: [
-                `release: ${process.env.VERSION}.`,
+                `release: ${process.env.VERSION}`,
                 '',
                 'created by the [release-make] workflow',
                 '',
