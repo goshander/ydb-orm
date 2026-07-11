@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # exit setup
-set -eo pipefail
+set -eox pipefail
 # [-e] - immediately exit if any command has a non-zero exit status
 # [-x] - all executed commands are printed to the terminal [not secure]
 # [-o pipefail] - if any command in a pipeline fails, that return code will be used as the return code of the whole pipeline
@@ -58,11 +58,8 @@ IAM_SERVICE_ACCOUNT_NAME="ydb-orm-test"
 IAM_SERVICE_ACCOUNT_ID=$(yc iam service-account get --name "${IAM_SERVICE_ACCOUNT_NAME}" --profile "${YC_PROFILE_NAME}" --format json | jq -r '.id')
 echo "service account id: ${IAM_SERVICE_ACCOUNT_ID}"
 echo ""
-if [ "${CI}" == "true" ]; then
-  IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token)
-else
-  IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token --impersonate-service-account-id "${IAM_SERVICE_ACCOUNT_ID}")
-fi
+IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token --impersonate-service-account-id "${IAM_SERVICE_ACCOUNT_ID}")
+
 export YDB_TOKEN="${IAM_TOKEN}"
 
 YDB_DATABASE="ydb-orm-test"
