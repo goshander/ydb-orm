@@ -51,15 +51,18 @@ if [ "${YC_PROFILE_EXISTS}" != "true" ] && [ ! -z "${YC_PROFILE_NAME}" ]; then
     exit 1
   fi
 
-  echo "ok: config yc profile [${PROFILE_NAME}] success"
+  echo "ok: config yc profile [${YC_PROFILE_NAME}] success"
 fi
 
 IAM_SERVICE_ACCOUNT_NAME="ydb-orm-test"
 IAM_SERVICE_ACCOUNT_ID=$(yc iam service-account get --name "${IAM_SERVICE_ACCOUNT_NAME}" --profile "${YC_PROFILE_NAME}" --format json | jq -r '.id')
 echo "service account id: ${IAM_SERVICE_ACCOUNT_ID}"
 echo ""
-IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token --impersonate-service-account-id "${IAM_SERVICE_ACCOUNT_ID}")
-
+if [ "${CI}" == "true" ]; then
+  IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token)
+else
+  IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token --impersonate-service-account-id "${IAM_SERVICE_ACCOUNT_ID}")
+fi
 export YDB_TOKEN="${IAM_TOKEN}"
 
 YDB_DATABASE="ydb-orm-test"
