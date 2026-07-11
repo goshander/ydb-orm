@@ -1,0 +1,23 @@
+name: Test Smoke
+
+on:
+  pull_request:
+
+jobs:
+  run:
+    name: test-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run docker:db-up
+      - run: npm run test:smoke
+        env:
+          YDB_ENDPOINT: grpc://localhost:2136
+          YDB_DATABASE: /local
+      - if: always()
+        run: npm run docker:db-down

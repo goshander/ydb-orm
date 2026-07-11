@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const rootDir = resolve(import.meta.dirname, '..')
-const templateDir = join(rootDir, 'scripts/package-smoke')
-const tempDir = mkdtempSync(join(tmpdir(), 'ydb-orm-package-smoke-'))
+const templateDir = join(rootDir, 'scripts/smoke')
+const tempDir = mkdtempSync(join(tmpdir(), 'ydb-orm-smoke'))
 
 const run = (command, args, options = {}) => {
   execFileSync(command, args, {
@@ -47,11 +47,11 @@ try {
     join(projectDir, 'package.json'),
     JSON.stringify(
       {
-        name: 'ydb-orm-package-smoke-consumer',
+        name: 'ydb-orm-smoke-consumer',
         private: true,
         type: 'module',
         scripts: {
-          'smoke:mjs': 'node smoke.mjs',
+          'smoke:mjs': 'node import-smoke.mjs',
           'smoke:cjs': 'node require-smoke.cjs',
         },
         dependencies: {
@@ -65,7 +65,10 @@ try {
 
   run('npm', ['install'], { cwd: projectDir })
 
-  copyFileSync(join(templateDir, 'smoke.mjs'), join(projectDir, 'smoke.mjs'))
+  copyFileSync(
+    join(templateDir, 'import-smoke.mjs'),
+    join(projectDir, 'import-smoke.mjs'),
+  )
   copyFileSync(
     join(templateDir, 'require-smoke.cjs'),
     join(projectDir, 'require-smoke.cjs'),
