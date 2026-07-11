@@ -1,0 +1,154 @@
+name: Release And Publish
+
+on:
+  pull_request:
+    types:
+      - closed
+
+concurrency:
+  group: release-publish-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: release
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release-v') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: validate release version
+        id: release_tag
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          tag="${HEAD_REF#release-}"
+          version="${tag#v}"
+
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "invalid release branch: ${HEAD_REF}" >&2
+            exit 1
+          fi
+
+          package_version=$(node -p "require('./package.json').version")
+          if [ "${version}" != "${package_version}" ]; then
+            echo "release branch version ${version} does not match package version ${package_version}" >&2
+            exit 1
+          fi
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+      - name: create and push tag
+        env:
+          TAG: ${{ steps.release_tag.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            remote_commit=$(git ls-remote --tags origin "refs/tags/${TAG}" | cut -f1)
+            current_commit=$(git rev-parse HEAD)
+            if [ "${remote_commit}" != "${current_commit}" ]; then
+              echo "tag ${TAG} already points to another commit" >&2
+              exit 1
+            fi
+            echo "tag ${TAG} already points to the release commit"
+          else
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+      - name: collect release notes
+        env:
+          TAG: ${{ steps.release_tag.outputs.tag }}
+        run: |
+          previous_tag=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+
+          if [ -n "${previous_tag}" ]; then
+            range="${previous_tag}..${TAG}"
+            heading="changes:"
+          else
+            range="${TAG}"
+            heading="changes:"
+          fi
+
+          {
+            echo "${heading}"
+            echo
+            # shellcheck disable=SC2016
+            changes=$(git log "${range}" \
+              --no-merges \
+              --extended-regexp \
+              --invert-grep \
+              --grep='^(release:|chore\(release\):)' \
+              --max-count=100 \
+              --pretty=format:'- %s (`%h`)')
+            if [ -n "${changes}" ]; then
+              echo "${changes}"
+            else
+              echo '- minor changes'
+            fi
+          } > "${RUNNER_TEMP}/release-notes.md"
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release_tag.outputs.tag }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "release ${TAG} already exists"
+          else
+            gh release create "${TAG}" \
+              --verify-tag \
+              --title "${TAG}" \
+              --notes-file "${RUNNER_TEMP}/release-notes.md"
+          fi
+
+  publish:
+    name: publish
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false # never use caching in release builds
+      - run: npm ci
+      - name: validate release version
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          package_version=$(node -p "require('./package.json').version")
+
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo " invalid release tag: ${TAG}" >&2
+            exit 1
+          fi
+
+          if [ "${version}" != "${package_version}" ]; then
+            echo "release tag version ${version} does not match package version ${package_version}" >&2
+            exit 1
+          fi
+      - run: npm run docker:db-up
+      - run: npm run test:smoke
+        env:
+          YDB_ENDPOINT: grpc://localhost:2136
+          YDB_DATABASE: /local
+      - run: npm run build --if-present
+      - run: npm publish --access public --provenance
+      - if: always()
+        run: npm run docker:db-down

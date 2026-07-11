@@ -218,6 +218,17 @@ All workflows use `actions/checkout@v6`. Test and coverage workflows currently
 rely on their command output and exit status; they do not publish separate job
 summaries or PR comments.
 
+### Release automation
+
+- `release-make.yaml` is started manually with a required `minor`, `patch`, or
+  `major` version increment and opens a `release-vX.Y.Z` pull request whose body
+  lists non-merge, non-release commits since the latest tag.
+- `release-publish.yaml` handles a merged release PR: it validates the package
+  version, creates the tag and GitHub Release, then tests the packed ESM/CJS
+  package against YDB and publishes it to npm with provenance. Release notes
+  use the same filtered commit list as the release PR and must not use GitHub's
+  automatically generated notes.
+
 ## Sequelize-Inspired Feature Status
 
 Reference areas: model basics, querying, associations, and transactions from the

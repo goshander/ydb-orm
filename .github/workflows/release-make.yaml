@@ -1,0 +1,122 @@
+name: Make Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        default: minor
+        type: choice
+        options:
+          - minor
+          - patch
+          - major
+
+concurrency:
+  group: release-make
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    name: make-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+      - name: bump version
+        id: version
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          VERSION=$(npm version "${RELEASE_TYPE}" --no-commit-hooks --no-git-tag-version)
+
+          BRANCH="release-${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "version: ${VERSION}"
+          echo "branch: ${BRANCH}"
+      - name: configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: collect potential changes
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          if [ -n "${last_tag}" ]; then
+            range="${last_tag}..HEAD"
+            heading="changes since ${last_tag}:"
+          else
+            range="HEAD"
+            heading="changes included in the first release:"
+          fi
+
+          {
+            echo "${heading}"
+            echo
+            # shellcheck disable=SC2016
+            changes=$(git log "${range}" \
+              --no-merges \
+              --extended-regexp \
+              --invert-grep \
+              --grep='^(release:|chore\(release\):)' \
+              --max-count=100 \
+              --pretty=format:'- %s (`%h`)')
+            if [ -n "${changes}" ]; then
+              echo "${changes}"
+            else
+              echo '- no user-facing changes found'
+            fi
+          } > "${RUNNER_TEMP}/release-changes.md"
+      - name: commit version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BRANCH: ${{ steps.version.outputs.branch }}
+        run: |
+          git switch -c "${BRANCH}"
+          git add package.json package-lock.json
+          git commit -m "release: up version to ${VERSION}"
+          git push origin "${BRANCH}"
+      - name: create release pr
+        uses: actions/github-script@v8
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BRANCH: ${{ steps.version.outputs.branch }}
+        with:
+          script: |
+            const fs = require('fs');
+            const title = `release: up version to ${process.env.VERSION}`;
+            const changes = fs.readFileSync(
+              `${process.env.RUNNER_TEMP}/release-changes.md`,
+              'utf8',
+            ).trim();
+
+            const {data: pull} = await github.rest.pulls.create({
+              ...context.repo,
+              title,
+              head: process.env.BRANCH,
+              base: 'main',
+              body: [
+                `release: ${process.env.VERSION}.`,
+                '',
+                'created by the [release-make] workflow',
+                '',
+                '## potential changes:',
+                '',
+                changes,
+              ].join('\n'),
+            });
+
+            core.info(`created release pr #${pull.number}: ${pull.html_url}`);

@@ -1,4 +1,4 @@
-name: Test Smoke
+name: Test Node.js
 
 on:
   pull_request:
@@ -8,17 +8,21 @@ permissions:
 
 jobs:
   run:
-    name: test-smoke
+    name: test-nodejs
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm run docker:db-up
-      - run: npm run test:smoke
+      - run: npm run test:nodejs
         env:
           YDB_ENDPOINT: grpc://localhost:2136
           YDB_DATABASE: /local
