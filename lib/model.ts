@@ -1,18 +1,40 @@
-import { DEFAULT_PRIMARY_KEY } from './constant'
-import { convert } from './convert'
-import { escape } from './escape'
+/** biome-ignore-all lint/complexity/noThisInStatic: constructor or instance as expected */
+import { DEFAULT_PRIMARY_KEY } from './constant.js'
 import {
+  assertIdentifier,
+  assertLimit,
+  assertOffset,
+  assertPage,
+  assertSchemaField,
+  exportAttributes,
+  exportOrder,
+  exportWhere,
+} from './query.js'
+import type {
+  CountOptionsType,
+  FindOptionsType,
+  PrimitiveType,
+  WhereType,
+  YdbModelConstructorType,
+  YdbModelFields,
+  YdbModelInstance,
+  YdbModelType,
+  YdbSchemaFieldType,
+  YdbSchemaOptionType,
+  YdbSchemaType,
+  YdbType,
+} from './type.js'
 
-  PrimitiveType, WhereType, YdbModelConstructorType, YdbModelType, YdbResultType,
-  YdbSchemaFieldType, YdbSchemaOptionType, YdbSchemaType, YdbType,
-} from './type'
-import { where } from './where'
-
-export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbModelType {
+export class YdbModel<TFields extends object = Record<string, PrimitiveType>>
+  implements YdbModelType<TFields>
+{
   [field: string]: unknown
 
-  constructor(fields: Record<string, PrimitiveType>) {
+  constructor(fields: Partial<Record<string, PrimitiveType>> = {}) {
+    const schema = (this.constructor as YdbModelConstructorType).fields
+
     Object.keys(fields).forEach((key) => {
+      assertSchemaField(schema, key)
       this[key] = fields[key]
     })
   }
@@ -23,13 +45,17 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
 
   static schema: YdbSchemaType
 
-  static get ctx() { return this._ctx }
+  static get ctx() {
+    return this._ctx
+  }
 
   static setCtx(ctx: YdbType) {
     this._ctx = ctx
   }
 
-  static get className() { return this.name }
+  static get className() {
+    return this.name
+  }
 
   static get fields() {
     if (this.schema.field) return this.schema.field as YdbSchemaFieldType
@@ -39,7 +65,10 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static get primaryKey() {
     if (this._primaryKey) return this._primaryKey
 
-    const schemaOption = this.schema.field && this.schema.option ? this.schema.option as YdbSchemaOptionType : {}
+    const schemaOption =
+      this.schema.field && this.schema.option
+        ? (this.schema.option as YdbSchemaOptionType)
+        : {}
     if (schemaOption.primaryKey) {
       this._primaryKey = schemaOption.primaryKey
     } else {
@@ -52,214 +81,387 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
   static get tableName() {
     if (this._tableName) return this._tableName
 
-    const schemaOption = this.schema.field && this.schema.option ? this.schema.option as YdbSchemaOptionType : {}
+    const schemaOption =
+      this.schema.field && this.schema.option
+        ? (this.schema.option as YdbSchemaOptionType)
+        : {}
 
     if (schemaOption.tableName) {
       this._tableName = schemaOption.tableName
     } else {
-      this._tableName = this.className[0].toLowerCase()
-      + this.className
-        .slice(1, this.className.length)
-        .replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      this._tableName =
+        this.className[0].toLowerCase() +
+        this.className
+          .slice(1, this.className.length)
+          .replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
     }
 
     return this._tableName
   }
 
-  static async copy(from: string, to: string) {
-    const { ctx, tableName } = this
-
-    await ctx.session(async (session) => {
-      const yql = `UPDATE ${tableName} SET ${to} = ${from};`
-
-      // session.prepareQuery()
-
-      await session.executeQuery(yql)
-    })
+  static build<T extends YdbModelType>(
+    this: new (
+      fields?: Partial<YdbModelFields<T>>,
+    ) => T,
+    fields: Partial<YdbModelFields<T>> = {},
+  ) {
+    return new this(fields) as YdbModelInstance<T>
   }
 
-  static async count(options:
-  { where?: WhereType, field?: string, distinct: boolean, index?: string } | undefined
-  = { distinct: false }) {
-    const { ctx, primaryKey, tableName } = this
+  static async create<T extends YdbModelType>(
+    this: new (
+      fields?: Partial<YdbModelFields<T>>,
+    ) => T,
+    fields: Partial<YdbModelFields<T>> = {},
+  ) {
+    const instance = new this(fields) as YdbModelInstance<T>
+    await instance.save()
+    return instance
+  }
 
-    const result = await ctx.session(async (session) => {
-      let cField = options?.field
-      if (cField === undefined) cField = primaryKey
+  static async query<T extends YdbModelType>(
+    this: new (
+      fields: Partial<YdbModelFields<T>>,
+    ) => T,
+    sql: string,
+    params?: Record<string, PrimitiveType>,
+  ) {
+    const { ctx } = this as unknown as YdbModelConstructorType
+    const result = await ctx.sql(sql, params)
 
-      if (options?.distinct) cField = `DISTINCT ${cField}`
+    return (result as Array<Record<string, PrimitiveType>>).map(
+      (row) =>
+        new this(row as Partial<YdbModelFields<T>>) as YdbModelInstance<T>,
+    )
+  }
 
-      let yql = `SELECT COUNT(${cField}) as count FROM ${tableName}`
+  static async copy(from: string, to: string) {
+    const { ctx, tableName, fields } = this
 
-      if (options?.index) {
-        yql = `${yql} VIEW ${options.index}`
-      }
-      if (options?.where) {
-        yql = `${yql} ${where(options.where)}`
-      }
+    assertIdentifier(tableName, 'table name')
+    assertIdentifier(from, 'field')
+    assertSchemaField(fields, to)
 
-      yql = `${yql};`
+    await ctx.sql(`UPDATE ${tableName} SET ${to} = ${from};`)
+  }
 
-      const { resultSets } = await session.executeQuery(yql)
+  static async count<T extends YdbModelType>(
+    this: YdbModelConstructorType<T>,
+    options: CountOptionsType<YdbModelFields<T>> | undefined = {
+      distinct: false,
+    },
+  ) {
+    const { ctx, primaryKey, tableName, fields } = this
 
-      return resultSets[0]
-    })
-    const typedResult = result as YdbResultType
+    assertIdentifier(tableName, 'table name')
 
-    const count = convert(typedResult.rows[0].items[0], typedResult.columns[0].type) as number
+    let cField: string = options?.field || primaryKey
+    assertSchemaField(fields, cField)
 
-    return count
+    if (options?.distinct) cField = `DISTINCT ${cField}`
+
+    let queryText = `SELECT COUNT(${cField}) as count FROM ${tableName}`
+
+    if (options?.index) {
+      assertIdentifier(options.index, 'index')
+      queryText = `${queryText} VIEW ${options.index}`
+    }
+
+    const params: Record<string, PrimitiveType> = {}
+
+    if (options?.where) {
+      const { clause, params: whereParams } = exportWhere(fields, options.where)
+      queryText = `${queryText} ${clause}`
+      Object.assign(params, whereParams)
+    }
+
+    queryText = `${queryText};`
+
+    const result = await ctx.sql(queryText, params)
+
+    return result[0].count as bigint
   }
 
   static async find<T extends YdbModelType>(
-    this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string } = {},
+    this: new (
+      fields: Partial<YdbModelFields<T>>,
+    ) => T,
+    options: FindOptionsType<YdbModelFields<T>> = {},
   ) {
-    const { ctx, tableName, fields } = this as unknown as YdbModelConstructorType
+    const { ctx, tableName, fields } =
+      this as unknown as YdbModelConstructorType
 
-    const result = await ctx.session(async (session) => {
-      let yql = `SELECT * FROM ${tableName}`
+    assertIdentifier(tableName, 'table name')
 
-      if (options.index) {
-        yql = `${yql} VIEW ${options.index}`
-      }
-      if (options.where) {
-        yql = `${yql} ${where(options.where)}`
-      }
-      if (options.order && fields[options.order]) {
-        yql = `${yql} ORDER BY ${options.order} DESC`
-      }
-      if (options.limit) {
-        yql = `${yql} LIMIT ${options.limit}`
-      }
-      if (options.offset) {
-        yql = `${yql} OFFSET ${options.offset}`
-      }
-      if (options.page && options.limit && !options.offset) {
-        yql = `${yql} OFFSET ${(options.page - 1) * options.limit}`
-      }
+    let queryText = `SELECT ${exportAttributes(fields, options.attributes)} FROM ${tableName}`
 
-      yql = `${yql};`
+    if (options.index) {
+      assertIdentifier(options.index, 'index')
+      queryText = `${queryText} VIEW ${options.index}`
+    }
 
-      const { resultSets } = await session.executeQuery(yql)
+    const params: Record<string, PrimitiveType> = {}
 
-      return resultSets[0]
-    })
+    if (options.where) {
+      const { clause, params: whereParams } = exportWhere(fields, options.where)
+      queryText = `${queryText} ${clause}`
+      Object.assign(params, whereParams)
+    }
 
-    const out: Array<T> = []
+    const orderSql = exportOrder(fields, options.order)
+    if (orderSql) {
+      queryText = `${queryText} ${orderSql}`
+    }
+    if (options.limit !== undefined) {
+      assertLimit(options.limit)
+      queryText = `${queryText} LIMIT ${options.limit}`
+    }
+    if (options.offset !== undefined) {
+      assertOffset(options.offset)
+      queryText = `${queryText} OFFSET ${options.offset}`
+    }
+    if (options.page !== undefined) {
+      assertPage(options.page)
+    }
+    if (
+      options.page !== undefined &&
+      options.limit !== undefined &&
+      options.offset === undefined
+    ) {
+      queryText = `${queryText} OFFSET ${(options.page - 1) * options.limit}`
+    }
 
-    const typedResult = result as YdbResultType
-    typedResult.rows.forEach((r) => {
-      const data: Record<string, PrimitiveType> = {}
-      typedResult.columns.forEach((c, ind) => {
-        data[c.name] = convert(r.items[ind], c.type)
-      })
+    queryText = `${queryText};`
 
-      out.push(new this(data))
+    const result = await ctx.sql(queryText, params)
+
+    const out: Array<YdbModelInstance<T>> = []
+    ;(result as Array<Record<string, PrimitiveType>>).forEach((row) => {
+      out.push(
+        new this(row as Partial<YdbModelFields<T>>) as YdbModelInstance<T>,
+      )
     })
 
     return out
   }
 
-  static async findByPk<T extends YdbModelType>(this: new (fields: Record<string, PrimitiveType>)=> T, pk: string) {
+  static async findByPk<T extends YdbModelType>(
+    this: new (
+      fields: Partial<YdbModelFields<T>>,
+    ) => T,
+    pk: string,
+  ) {
     const { primaryKey } = this as unknown as YdbModelConstructorType
 
-    const out = await YdbModel.find.bind(this)({
+    const find = YdbModel.find as unknown as (
+      this: new (
+        fields: Partial<YdbModelFields<T>>,
+      ) => T,
+      options: FindOptionsType<YdbModelFields<T>>,
+    ) => Promise<Array<YdbModelInstance<T>>>
+
+    const out = await find.call(this, {
       where: {
         [primaryKey]: pk,
-      },
+      } as WhereType<YdbModelFields<T>>,
       limit: 1,
     })
 
-    return out[0] as unknown as T || null
+    return (out[0] as unknown as YdbModelInstance<T>) || null
   }
 
   static async findOne<T extends YdbModelType>(
-    this: new (fields: Record<string, PrimitiveType>)=> T,
-    options: { where?: WhereType, order?: string, index?: string } = { },
+    this: new (
+      fields: Partial<YdbModelFields<T>>,
+    ) => T,
+    options: Pick<
+      FindOptionsType<YdbModelFields<T>>,
+      'where' | 'order' | 'index' | 'attributes'
+    > = {},
   ) {
-    const out = await YdbModel.find.bind(this)({
+    const find = YdbModel.find as unknown as (
+      this: new (
+        fields: Partial<YdbModelFields<T>>,
+      ) => T,
+      options: FindOptionsType<YdbModelFields<T>>,
+    ) => Promise<Array<YdbModelInstance<T>>>
+
+    const out = await find.call(this, {
       where: options.where,
       order: options.order,
       index: options.index,
+      attributes: options.attributes,
       limit: 1,
     })
 
-    return out[0] as unknown as T || null
+    return (out[0] as unknown as YdbModelInstance<T>) || null
   }
 
-  static async update(data: Record<string, PrimitiveType>, options: { where: WhereType }) {
-    const { ctx, tableName } = this
+  static findAll = this.find
 
-    await ctx.session(async (session) => {
-      const set = Object.keys(data).map((c) => `${c} = ${escape(data[c])}`).join(', ')
+  static async update<T extends YdbModelType>(
+    this: YdbModelConstructorType<T>,
+    data: Partial<YdbModelFields<T>>,
+    options: { where: WhereType<YdbModelFields<T>> },
+  ) {
+    const { ctx, tableName, fields } = this
 
-      let yql = `UPDATE ${tableName} SET ${set}`
+    assertIdentifier(tableName, 'table name')
 
-      yql = `${yql} ${where(options.where)}`
+    const setParams: Record<string, PrimitiveType> = {}
+    const setClauses: string[] = []
 
-      yql = `${yql};`
+    // Создаем SET часть с параметрами
+    Object.keys(data).forEach((column, index) => {
+      assertSchemaField(fields, column)
 
-      await session.executeQuery(yql)
+      const value = data[column as keyof YdbModelFields<T>]
+      if (value === undefined) return
+
+      const paramName = `set_${column}_${index}`
+      setClauses.push(`${column} = $${paramName}`)
+      setParams[paramName] = value as PrimitiveType
     })
+
+    if (setClauses.length === 0) {
+      throw new Error('ydb: update requires at least one field')
+    }
+
+    const { clause: whereClause, params: whereParams } = exportWhere(
+      fields,
+      options.where,
+      'update',
+    )
+
+    if (!whereClause) {
+      throw new Error('ydb: update requires a non-empty where clause')
+    }
+
+    const queryText = `UPDATE ${tableName} SET ${setClauses.join(', ')} ${whereClause};`
+
+    // Объединяем все параметры
+    const allParams = { ...setParams, ...whereParams }
+
+    await ctx.sql(queryText, allParams)
   }
 
-  get model() { return (this.constructor as YdbModelConstructorType) }
+  static async destroy<T extends YdbModelType>(
+    this: YdbModelConstructorType<T>,
+    options: { where: WhereType<YdbModelFields<T>> },
+  ) {
+    const { ctx, tableName, fields } = this
+    const { clause, params } = exportWhere(fields, options.where, 'destroy')
+
+    assertIdentifier(tableName, 'table name')
+
+    if (!clause) {
+      throw new Error('ydb: destroy requires a non-empty where clause')
+    }
+
+    await ctx.sql(`DELETE FROM ${tableName} ${clause};`, params)
+  }
+
+  get model() {
+    return this.constructor as YdbModelConstructorType
+  }
 
   async save() {
     const { ctx, tableName } = this.model
 
-    await ctx.session(async (session) => {
-      const table = await session.describeTable(tableName)
-      const columns = table.columns.map((c) => {
-        if (!c.name) throw Error(`ydb: column of table \`${tableName}\` has null name`)
-        return c.name
-      })
+    assertIdentifier(tableName, 'table name')
 
-      const values = columns.map((c) => escape(this[c] as PrimitiveType)).join(', ')
+    const schema = this.model.fields
+    const columns = Object.keys(schema)
 
-      const yql = `UPSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`
+    const params: Record<string, PrimitiveType> = {}
+    const paramNames: string[] = []
 
-      await session.executeQuery(yql)
+    columns.forEach((column, index) => {
+      assertSchemaField(schema, column)
+
+      const paramName = `param_${index}`
+      paramNames.push(`$${paramName}`)
+      params[paramName] = this[column] as PrimitiveType
     })
+
+    const queryText = `UPSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${paramNames.join(', ')});`
+
+    await ctx.sql(queryText, params)
+
     return this
   }
 
   async delete() {
-    const { ctx, primaryKey, tableName } = this.model
+    const { ctx, primaryKey, tableName, fields } = this.model
 
-    await ctx.session(async (session) => {
-      const key = escape(this[primaryKey] as string)
+    assertIdentifier(tableName, 'table name')
+    assertSchemaField(fields, primaryKey)
 
-      const yql = `DELETE FROM ${tableName} WHERE ${primaryKey} = ${key};`
+    const pKeyValue = this[primaryKey] as PrimitiveType
 
-      await session.executeQuery(yql)
+    await ctx.sql(
+      `DELETE FROM ${tableName} WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+      },
+    )
+  }
+
+  async update(fields: Partial<TFields>) {
+    const schema = this.model.fields
+    const fieldNames = Object.keys(fields)
+    fieldNames.forEach((field) => {
+      assertSchemaField(schema, field)
     })
+    fieldNames.forEach((field) => {
+      this[field] = fields[field as keyof TFields]
+    })
+    await this.save()
+    return this
+  }
+
+  async reload() {
+    const { primaryKey } = this.model
+    const pKeyValue = this[primaryKey] as string
+    const fresh = await this.model.findByPk(pKeyValue)
+
+    if (fresh === null) {
+      return null
+    }
+
+    Object.assign(this, fresh.toJson())
+    return this
   }
 
   async increment(field: string, options: { by?: number } = {}) {
-    const { ctx, primaryKey, tableName } = this.model
+    const { ctx, primaryKey, tableName, fields } = this.model
 
-    const result = await ctx.session(async (session) => {
-      const key = escape(this[primaryKey] as string)
+    assertIdentifier(tableName, 'table name')
+    assertSchemaField(fields, primaryKey)
+    assertSchemaField(fields, field)
 
-      const incBy = options.by || 1
+    const pKeyValue = this[primaryKey] as PrimitiveType
 
-      const set = `${field} = ${field} + ${incBy}`
+    await ctx.sql(
+      `UPDATE ${tableName}
+        SET ${field} = ${field} + $incBy
+        WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+        incBy: options.by || 1,
+      },
+    )
 
-      const yql = `UPDATE ${tableName} SET ${set} WHERE ${primaryKey} = ${key};`
+    const result = await ctx.sql(
+      `SELECT ${field}
+        FROM ${tableName}
+        WHERE ${primaryKey} = $primaryKey;`,
+      {
+        primaryKey: pKeyValue,
+      },
+    )
 
-      await session.executeQuery(yql)
-
-      const { resultSets } = await session.executeQuery(
-        `SELECT ${field} FROM ${tableName} WHERE ${primaryKey} = ${key};`,
-      )
-
-      return resultSets[0]
-    })
-    const typedResult = result as YdbResultType
-
-    this[field] = convert(typedResult.rows[0].items[0], typedResult.columns[0].type)
+    this[field] = result[0][field]
   }
 
   toJson() {
@@ -268,14 +470,14 @@ export const YdbModel: YdbModelConstructorType = class YdbModel implements YdbMo
       json[key] = this[key] as PrimitiveType
     })
 
-    return json
+    return json as TFields
   }
 
   static async drop() {
     const { ctx, tableName } = this
 
-    await ctx.session(async (session) => {
-      await session.dropTable(tableName)
-    })
+    assertIdentifier(tableName, 'table name')
+
+    await ctx.sql(`DROP TABLE ${tableName};`)
   }
 }

@@ -1,0 +1,69 @@
+services:
+  test:
+    command: bun run test
+    build:
+      context: ./
+      dockerfile: ./docker/test.dockerfile
+    depends_on:
+      - database
+    restart: "no"
+    image: ydb-orm:test
+    environment:
+      - NODE_ENV=test
+
+      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_DATABASE=/local
+    networks:
+      - local
+
+  test-nodejs:
+    command: npm run test:nodejs
+    build:
+      context: ./
+      dockerfile: ./docker/test.nodejs.dockerfile
+    depends_on:
+      - database
+    restart: "no"
+    image: ydb-orm:test-nodejs
+    environment:
+      - NODE_ENV=test
+
+      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_DATABASE=/local
+    networks:
+      - local
+
+  test-smoke:
+    command: npm run test:smoke
+    build:
+      context: ./
+      dockerfile: ./docker/test.nodejs.dockerfile
+    depends_on:
+      - database
+    restart: "no"
+    image: ydb-orm:package-smoke
+    environment:
+      - NODE_ENV=test
+
+      - YDB_ENDPOINT=grpc://database:2136
+      - YDB_DATABASE=/local
+    networks:
+      - local
+
+  database:
+    image: ydbplatform/local-ydb:26.2.1
+    platform: linux/amd64
+    hostname: ${YDB_HOSTNAME:-database}
+    environment:
+      - YDB_USE_IN_MEMORY_PDISKS=true
+      - YDB_DEFAULT_LOG_LEVEL=WARN
+      - GRPC_TLS_PORT=2135
+      - GRPC_PORT=2136
+      - MON_PORT=8765
+    restart: "no"
+    networks:
+      - local
+
+networks:
+  local:
+    driver: bridge

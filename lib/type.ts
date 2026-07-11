@@ -1,62 +1,138 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+import type { SecureContextOptions } from 'node:tls'
+import type { YDBError } from '@ydbjs/error'
+import type { JSValue } from '@ydbjs/value'
 import type Long from 'long'
-import type { Logger } from 'pino'
-import { Ydb } from 'ydb-sdk'
-import type {
-  Driver, ISslCredentials, Session, YdbError,
-} from 'ydb-sdk'
+import type { BaseLogger } from 'pino'
 
-export type BaseType = boolean | number | string | null
+import type { YdbApi } from './api.js'
+import { type DATA_TYPE_ID_MAP, DATA_TYPE_KEY_MAP } from './constant.js'
+
+export type BaseType = boolean | number | bigint | string | Buffer | null
 export type FieldType = BaseType | Date
 export type ArrayType = Array<FieldType>
-export type JsonType =
-  | BaseType
-  | { [property: string]: JsonType }
-  | JsonType[]
+export type JsonType = BaseType | { [property: string]: JsonType } | JsonType[]
 
 export type PrimitiveType = FieldType | ArrayType | JsonType
 
 export type LikeType = { like: PrimitiveType }
-export type WhereType = Record<string, PrimitiveType | LikeType>
+export type NotLikeType = { notLike: PrimitiveType }
+export type NullType = { is?: null; isNot?: null }
+export type NotType = { not: PrimitiveType }
+export type BetweenType = {
+  between?: [PrimitiveType, PrimitiveType]
+  notBetween?: [PrimitiveType, PrimitiveType]
+}
+export type CompareType = {
+  eq?: PrimitiveType
+  ne?: PrimitiveType
+  gt?: PrimitiveType
+  gte?: PrimitiveType
+  lt?: PrimitiveType
+  lte?: PrimitiveType
+  in?: ArrayType
+  notIn?: ArrayType
+}
+export type WhereOperatorType =
+  | LikeType
+  | NotLikeType
+  | NullType
+  | NotType
+  | BetweenType
+  | CompareType
 export type FieldsType = Record<string, PrimitiveType>
+export type FieldNameType<TFields extends object = FieldsType> = Extract<
+  keyof TFields,
+  string
+>
+export type WhereType<TFields extends object = FieldsType> = {
+  [field in FieldNameType<TFields>]?:
+    | PrimitiveType
+    | WhereOperatorType
+    | WhereType<TFields>
+    | Array<WhereType<TFields>>
+    | undefined
+} & {
+  and?: WhereType<TFields> | Array<WhereType<TFields>>
+  or?: WhereType<TFields> | Array<WhereType<TFields>>
+}
+export type FindOrderDirectionType = 'ASC' | 'DESC'
+export type FindOrderType<TFields extends object = FieldsType> =
+  | FieldNameType<TFields>
+  | [FieldNameType<TFields>, FindOrderDirectionType]
+  | Array<[FieldNameType<TFields>, FindOrderDirectionType]>
+export type FindAttributesType<TFields extends object = FieldsType> =
+  | Array<FieldNameType<TFields>>
+  | {
+      include?: Array<FieldNameType<TFields>>
+      exclude?: Array<FieldNameType<TFields>>
+    }
+export type FindOptionsType<TFields extends object = FieldsType> = {
+  where?: WhereType<TFields>
+  offset?: number
+  limit?: number
+  page?: number
+  order?: FindOrderType<TFields>
+  index?: string
+  attributes?: FindAttributesType<TFields>
+}
+export type CountOptionsType<TFields extends object = FieldsType> = {
+  where?: WhereType<TFields>
+  field?: FieldNameType<TFields>
+  distinct: boolean
+  index?: string
+}
 
-export const YdbDataType = {
-  date: Ydb.Type.PrimitiveTypeId.TIMESTAMP,
-  string: Ydb.Type.PrimitiveTypeId.UTF8,
-  ascii: Ydb.Type.PrimitiveTypeId.STRING,
-  int: Ydb.Type.PrimitiveTypeId.INT32,
-  int32: Ydb.Type.PrimitiveTypeId.INT32,
-  int64: Ydb.Type.PrimitiveTypeId.INT64,
-  int8: Ydb.Type.PrimitiveTypeId.INT8,
-  uint: Ydb.Type.PrimitiveTypeId.UINT32,
-  uint32: Ydb.Type.PrimitiveTypeId.UINT32,
-  uint64: Ydb.Type.PrimitiveTypeId.UINT64,
-  uint8: Ydb.Type.PrimitiveTypeId.UINT8,
-  double: Ydb.Type.PrimitiveTypeId.DOUBLE,
-  bool: Ydb.Type.PrimitiveTypeId.BOOL,
-  json: Ydb.Type.PrimitiveTypeId.JSON,
-} as const
-export type YdbDataTypeId = typeof YdbDataType[keyof typeof YdbDataType]
-export type YdbDataTypeWithOption = { type: YdbDataTypeId, index?: boolean, drop?: boolean, renamed?: string }
-export type YdbSchemaFieldType = Record<string, YdbDataTypeId | YdbDataTypeWithOption>
-export type YdbSchemaOptionType = { tableName?: string; primaryKey?: string, strict?: boolean }
-export type YdbSchemaType = YdbSchemaFieldType | { field: YdbSchemaFieldType, option?: YdbSchemaOptionType }
+export const YdbDataType = DATA_TYPE_KEY_MAP
+export type YdbDataTypeType = typeof YdbDataType
+export type YdbDataTypeKey = (typeof DATA_TYPE_KEY_MAP)[keyof YdbDataTypeType]
+export type YdbDataTypeId = (typeof DATA_TYPE_ID_MAP)[keyof YdbDataTypeType]
+export type YdbDataTypeWithOption = {
+  type: YdbDataTypeKey
+  index?: boolean
+  drop?: boolean
+  renamed?: string
+}
+export type YdbSchemaFieldType = Record<
+  string,
+  YdbDataTypeKey | YdbDataTypeWithOption
+>
+export type YdbSchemaOptionType = {
+  tableName?: string
+  primaryKey?: string
+  strict?: boolean
+}
+export type YdbSchemaType =
+  | YdbSchemaFieldType
+  | { field: YdbSchemaFieldType; option?: YdbSchemaOptionType }
+export type YdbQueryResult = Array<FieldsType>
 
-export interface YdbModelType {
+export interface YdbModelType<TFields extends object = FieldsType> {
   model: YdbModelConstructorType
 
   save(): Promise<this>
   delete(): Promise<void>
+  update(fields: Partial<TFields>): Promise<this>
+  reload(): Promise<this | null>
   increment(field: string, options?: { by?: number }): Promise<void>
 
-  toJson(): FieldsType
+  toJson(): TFields
 }
 
-// dirty solution: https://github.com/microsoft/TypeScript/issues/5863
-type ThisConstructorType<T> = new(fields: FieldsType)=> T
+export type YdbModelInstance<T extends YdbModelType> = T &
+  (T extends YdbModelType<infer TFields> ? TFields : FieldsType)
+export type YdbModelFields<T extends YdbModelType> =
+  T extends YdbModelType<infer TFields> ? TFields : FieldsType
 
-export interface YdbModelConstructorType {
-  new (fields: FieldsType): YdbModelType;
+// dirty solution: https://github.com/microsoft/TypeScript/issues/5863
+type ThisConstructorType<T extends YdbModelType> = new (
+  fields: Partial<YdbModelFields<T>>,
+) => T
+
+export interface YdbModelConstructorType<
+  TInstance extends YdbModelType = YdbModelType,
+> {
+  // biome-ignore lint/suspicious/noExplicitAny: model constructors own their field input shape
+  new (...args: any[]): TInstance
 
   _tableName: string
   _primaryKey: string
@@ -70,74 +146,129 @@ export interface YdbModelConstructorType {
   ctx: YdbType
   setCtx(ctx: YdbType): void
 
+  build<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    fields?: Partial<YdbModelFields<T>>,
+  ): YdbModelInstance<T>
+  create<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    fields?: Partial<YdbModelFields<T>>,
+  ): Promise<YdbModelInstance<T>>
+  query<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    sql: string,
+    params?: Record<string, PrimitiveType>,
+  ): Promise<Array<YdbModelInstance<T>>>
   copy(from: string, to: string): Promise<void>
-  count(options?: { where?: WhereType, field?: string, distinct: boolean, index?: string }): Promise<number>
-  find<T extends YdbModelType>(this: ThisConstructorType<T>, options?: {
-    where?: WhereType, offset?: number, limit?: number, page?: number, order?: string, index?: string
-  }): Promise<Array<T>>
-  findByPk<T extends YdbModelType>(this: ThisConstructorType<T>, pk: string): Promise<T | null>
-  findOne<T extends YdbModelType>(this: ThisConstructorType<T>,
-    options: { where?: WhereType, order?: string, index?: string }): Promise<T | null>
-  update(fields: FieldsType, options: { where: WhereType }): Promise<void>
+  count(options?: CountOptionsType<YdbModelFields<TInstance>>): Promise<bigint>
+  find<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    options?: FindOptionsType<YdbModelFields<T>>,
+  ): Promise<Array<YdbModelInstance<T>>>
+  findAll<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    options?: FindOptionsType<YdbModelFields<T>>,
+  ): Promise<Array<YdbModelInstance<T>>>
+  findByPk<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    pk: string,
+  ): Promise<YdbModelInstance<T> | null>
+  findOne<T extends YdbModelType>(
+    this: ThisConstructorType<T>,
+    options: Pick<
+      FindOptionsType<YdbModelFields<T>>,
+      'where' | 'order' | 'index' | 'attributes'
+    >,
+  ): Promise<YdbModelInstance<T> | null>
+  update(
+    fields: Partial<YdbModelFields<TInstance>>,
+    options: { where: WhereType<YdbModelFields<TInstance>> },
+  ): Promise<void>
+  destroy(options: {
+    where: WhereType<YdbModelFields<TInstance>>
+  }): Promise<void>
   drop(): Promise<void>
 }
 
-export type YdbOptionType = {
+export type YdbModelsObjectType = Record<string, YdbModelConstructorType>
+export type YdbModelsOptionType = YdbModelsObjectType
+
+export type YdbOptionType<
+  TModels extends YdbModelsOptionType = YdbModelsObjectType,
+> = {
   endpoint?: string
   database?: string
   connectionString?: string
 
   token?: string
   credential?: {
-    serviceAccountId: string;
-    accessKeyId: string;
-    privateKey: Buffer;
-    iamEndpoint: string;
+    serviceAccountId: string
+    accessKeyId: string
+    privateKey: Buffer
+    iamEndpoint: string
   }
 
-  models?: Array<YdbModelConstructorType>
+  models?: TModels
 
-  logger?: Logger
+  logger?: BaseLogger
   timeout?: number
-  cert?: ISslCredentials
+  ssl?: SecureContextOptions
   meta?: boolean
+
+  debug?: boolean
 }
 
 export interface YdbModelRegistryType {
   [key: string]: YdbModelConstructorType
 }
 
-export interface YdbType {
-  timeout: number
-  driver: Driver
-  logger: Logger
-  model: YdbModelRegistryType
+export type YdbRegistryFromModels<TModels extends YdbModelsObjectType> =
+  keyof TModels extends never ? YdbModelRegistryType : TModels
 
-  session(action: (session: Session)=> Promise<unknown>): Promise<unknown>
+export interface YdbType<
+  TRegistry extends YdbModelRegistryType = YdbModelRegistryType,
+> {
+  logger: BaseLogger
+  model: TRegistry
+
+  sql(sql: string, params?: Record<string, JSValue>): Promise<YdbQueryResult>
+  transaction<T>(
+    callback: (tx: YdbTransactionType, signal: AbortSignal) => Promise<T> | T,
+    options?: YdbTransactionOptionsType,
+  ): Promise<T>
   connect(): Promise<void>
+  wait(timeout?: number): Promise<void>
   close(): Promise<void>
   sync(): Promise<void>
   load(model: YdbModelConstructorType): void
+  api(): YdbApi
+
+  debug: boolean
 }
 
 export interface YdbConstructorType {
-  new (option: YdbOptionType): YdbType;
-  get db(): YdbType;
-  init: (option: YdbOptionType)=> YdbType;
+  new (option: YdbOptionType): YdbType
+  get db(): YdbType
+  init: {
+    <TModels extends YdbModelsObjectType>(
+      option: YdbOptionType<TModels> & { models: TModels },
+    ): YdbType<YdbRegistryFromModels<TModels>>
+    (option?: YdbOptionType): YdbType
+  }
 }
 
 export type RawDataType = {
-  uint8Value?: number;
-  uint32Value?: number;
-  uint64Value?: Long;
-  int8Value?: number;
-  int32Value?: number;
-  int64Value?: Long;
-  doubleValue?: number;
-  boolValue?: boolean;
-  nullFlagValue?: null;
-  bytesValue?: Buffer;
-  textValue?: string;
+  uint8Value?: number
+  uint32Value?: number
+  uint64Value?: Long
+  int8Value?: number
+  int32Value?: number
+  int64Value?: Long
+  doubleValue?: number
+  boolValue?: boolean
+  nullFlagValue?: null
+  bytesValue?: Buffer
+  textValue?: string
 }
 
 export type RawFieldType = {
@@ -159,9 +290,21 @@ export type YdbIndexType = {
   indexColumns: string[]
 }
 
+export type YdbTransactionOptionsType = {
+  isolation?: 'serializableReadWrite' | 'snapshotReadOnly' | 'snapshotReadWrite'
+  idempotent?: boolean
+  signal?: AbortSignal
+}
+
+export type YdbTransactionType = {
+  logger: BaseLogger
+  debug: boolean
+  sql(sql: string, params?: Record<string, JSValue>): Promise<YdbQueryResult>
+}
+
 export type YdbResultType = {
   columns: Array<YdbColumnType>
   rows: Array<{ items: Array<RawDataType> }>
 }
 
-export type YdbErrorType = YdbError
+export type YdbErrorType = YDBError

@@ -1,0 +1,15 @@
+services:
+  database:
+    extends:
+      file: docker-compose.yaml
+      service: database
+    hostname: localhost
+    ports:
+      - 127.0.0.1:2136:2136
+      - 127.0.0.1:8765:8765
+    networks:
+      - local
+
+networks:
+  local:
+    driver: bridge

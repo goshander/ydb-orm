@@ -1,48 +1,49 @@
-import { TestOptions, test } from '../test'
+import { type TestBase, type TestOptions, test } from '../test.js'
 
-import { Game as GameModel } from './model/game'
-import { User as UserModel } from './model/user'
+import { Game as GameModel } from './model/game.js'
+import { User as UserModel } from './model/user.js'
 
-declare module '..' {
-  interface YdbModelRegistryType {
-    Game: typeof GameModel
-    User: typeof UserModel
-  }
-}
-
-const options: TestOptions = {
-  models: [
-    UserModel,
-    GameModel,
-  ],
+const options = {
+  models: { User: UserModel, Game: GameModel },
   sync: true,
-}
+} satisfies TestOptions
 
-test(import.meta, 'game', options, async (t, { db }) => {
-  const User = db.model.User
-  const Game = db.model.Game
+type GameConstructor = typeof GameModel
+type UserConstructor = typeof UserModel
 
-  const userOne = new User({ name: 'user-one' })
-  t.teardown(async () => {
-    await userOne.delete()
-  })
+const createGame = async (
+  t: TestBase,
+  User: UserConstructor,
+  Game: GameConstructor,
+) => {
+  const userOne = User.build({ name: 'user-one' })
   await userOne.save()
 
-  const game = new Game({
+  const game = Game.build({
     meta: 'game',
     user: [{ id: userOne.id, name: userOne.name }],
     progress: 0.6667,
   })
-  t.teardown(async () => {
-    await game.delete()
-  })
   await game.save()
 
-  const userTwo = new User({ name: 'user-two' })
+  t.teardown(async () => {
+    await game.delete()
+    await userOne.delete()
+  })
+
+  return { game, userOne }
+}
+
+test('game - save and load json fields', options, async (t, { db }) => {
+  const User = db.model.User
+  const Game = db.model.Game
+  const { game } = await createGame(t, User, Game)
+
+  const userTwo = User.build({ name: 'user-two' })
+  await userTwo.save()
   t.teardown(async () => {
     await userTwo.delete()
   })
-  await userTwo.save()
 
   game.user.push({ id: userTwo.id, name: userTwo.name })
   await game.save()
@@ -50,19 +51,39 @@ test(import.meta, 'game', options, async (t, { db }) => {
   const gameCheck = await Game.findOne({ where: { id: game.id } })
 
   t.expect(gameCheck?.toJson()).toEqual(game.toJson())
+})
 
-  // double
-  t.expect(gameCheck?.progress).toEqual(0.6667)
+test('game - double field comparisons', options, async (t, { db }) => {
+  const User = db.model.User
+  const Game = db.model.Game
+  const { game } = await createGame(t, User, Game)
 
-  // increment
+  const gameByProgress = await Game.findOne({
+    where: {
+      id: game.id,
+      progress: {
+        gt: 0.5,
+        gte: 0.6667,
+        lt: 1,
+        lte: 0.6667,
+        ne: 0,
+      },
+    },
+  })
+
+  t.expect(gameByProgress?.id).toBe(game.id)
+  t.expect(gameByProgress?.progress).toEqual(0.6667)
+})
+
+test('game - increment field', options, async (t, { db }) => {
+  const User = db.model.User
+  const Game = db.model.Game
+  const { game } = await createGame(t, User, Game)
+
   t.expect(game.turn).toEqual(0)
 
   await game.increment('turn')
   t.expect(game.turn).toEqual(1)
-
-  // index
-  const gameByIndex = await Game.findOne({ where: { mode: 'easy' }, index: 'index_game_mode' })
-  t.expect(gameByIndex).toBeTruthy()
 
   let gameTurnCheck = await Game.findOne({ where: { id: game.id } })
   t.expect(gameTurnCheck?.turn).toEqual(1)
@@ -72,4 +93,20 @@ test(import.meta, 'game', options, async (t, { db }) => {
 
   gameTurnCheck = await Game.findOne({ where: { id: game.id } })
   t.expect(gameTurnCheck?.turn).toEqual(6)
+})
+
+test('game - find by index', options, async (t, { db }) => {
+  const User = db.model.User
+  const Game = db.model.Game
+  const { game } = await createGame(t, User, Game)
+
+  const gameByIndex = await Game.findOne({
+    where: {
+      id: game.id,
+      mode: 'easy',
+    },
+    index: 'index_game_mode',
+  })
+
+  t.expect(gameByIndex?.id).toBe(game.id)
 })

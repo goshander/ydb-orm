@@ -9,7 +9,10 @@ node_modules
 .nyc_output
 .DS_Store
 
+coverage
+
 dist
 ydb_certs
 
 .env
+sa-key.json

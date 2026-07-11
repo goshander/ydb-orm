@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  pull_request:
+
+jobs:
+  run:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run docker:db-up
+      - run: bun run test
+        env:
+          YDB_ENDPOINT: grpc://localhost:2136
+          YDB_DATABASE: /local
+      - if: always()
+        run: bun run docker:db-down

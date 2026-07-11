@@ -1,66 +1,78 @@
 import bunTest from 'bun:test'
-import { BaseLogger } from 'pino'
+import pino, { type BaseLogger } from 'pino'
 
 import {
-  Ydb, YdbModelConstructorType, YdbType,
-} from '.'
+  Ydb,
+  type YdbModelsObjectType,
+  type YdbOptionType,
+  type YdbRegistryFromModels,
+  type YdbType,
+} from './index.js'
 
-type YdbTestOptions = {
-  models?: Array<YdbModelConstructorType>
-  sync?: boolean
-}
+type YdbTestOptions<TModels extends YdbModelsObjectType = YdbModelsObjectType> =
+  Pick<YdbOptionType<TModels>, 'models'> & { sync?: boolean }
 
-export type TestOptions = bunTest.TestOptions & YdbTestOptions
+export type TestOptions<
+  TModels extends YdbModelsObjectType = YdbModelsObjectType,
+> = bunTest.TestOptions & YdbTestOptions<TModels>
 
-export type TestCtx = {
-  db: YdbType;
-  logger: BaseLogger;
-}
+export type TestCtx<TModels extends YdbModelsObjectType = YdbModelsObjectType> =
+  {
+    db: YdbType<YdbRegistryFromModels<TModels>>
+    logger: BaseLogger
+  }
 
-type TestBase = {
-  expect: typeof bunTest.expect;
-  setSystemTime: typeof bunTest.setSystemTime;
-  mock: typeof bunTest.mock;
+export type TestBase = {
+  expect: typeof bunTest.expect
+  setSystemTime: typeof bunTest.setSystemTime
+  mock: typeof bunTest.mock
   spyOn: typeof bunTest.spyOn
   init: typeof bunTest.beforeAll
   teardown: typeof bunTest.afterAll
 }
 
-export type TestCallback = (t: TestBase, ctx: TestCtx)=> void | Promise<void>
+export type TestCallback<
+  TModels extends YdbModelsObjectType = YdbModelsObjectType,
+> = (t: TestBase, ctx: TestCtx<TModels>) => void | Promise<void>
 
-type TestArgs = [
-  string,
-  TestOptions,
-  TestCallback,
-] | [
-  string,
-  TestCallback,
-]
+async function prepare<
+  TModels extends YdbModelsObjectType = YdbModelsObjectType,
+>(options?: YdbTestOptions<TModels>) {
+  const logger = pino({
+    transport: {
+      target: 'pino-pretty',
+    },
+    level: 'debug',
+  })
 
-async function prepare(options?: YdbTestOptions) {
   const db = Ydb.init({
     endpoint: process.env.YDB_ENDPOINT || '',
     database: process.env.YDB_DATABASE || '',
+    token: process.env.YDB_TOKEN || '',
+    connectionString: process.env.YDB_CONNECTION_STRING || '',
 
-    models: options?.models,
+    models: (options?.models || {}) as TModels,
 
-    timeout: 1000,
+    timeout: Number(process.env.YDB_TEST_TIMEOUT || 10000),
+    logger,
+    debug: process.env.YDB_DEBUG === '1' || process.env.YDB_DEBUG === 'true',
   })
 
   bunTest.afterAll(async () => {
     await db.close()
   })
 
-  await db.connect()
+  const timeout = Number(process.env.YDB_TEST_WAIT_TIMEOUT || 30000)
+  await db.wait(timeout)
 
   if (options?.sync === true) {
     await db.sync()
   }
 
-  const ctx: TestCtx = {
+  const ctx = {
     db,
-    logger: db.logger,
-  }
+    logger,
+  } as TestCtx<TModels>
 
   const test: TestBase = {
     expect: bunTest.expect,
@@ -79,43 +91,43 @@ async function prepare(options?: YdbTestOptions) {
 
 type BunTest = (
   label: string,
-  fn: ()=> void | Promise<unknown>,
+  fn: () => undefined | Promise<unknown>,
   options?: TestOptions,
-)=> void
+) => void
 
-const baseTest = (args: TestArgs, testFunc: BunTest) => {
-  let name: string
-  let callback: TestCallback
-  let options: TestOptions | undefined
+const createTest = (testFunc: BunTest) =>
+  function testWithCtx<
+    TModels extends YdbModelsObjectType = YdbModelsObjectType,
+  >(
+    name: string,
+    optionsOrCallback: TestOptions<TModels> | TestCallback<TModels>,
+    callback?: TestCallback<TModels>,
+  ) {
+    const options =
+      typeof optionsOrCallback === 'function' ? undefined : optionsOrCallback
+    const testCallback =
+      typeof optionsOrCallback === 'function' ? optionsOrCallback : callback
 
-  if (args.length === 3) {
-    [name, options, callback] = args
-  } else {
-    [name, callback] = args
+    if (!testCallback) {
+      throw new Error('test callback is required')
+    }
+
+    return testFunc(
+      name,
+      async () => {
+        const { test, ctx } = await prepare(options)
+        await testCallback(test, ctx)
+      },
+      options,
+    )
   }
 
-  return testFunc(name, async () => {
-    const { test, ctx } = await prepare(options)
-    await callback(test, ctx)
-  }, options)
-}
-
-// @ts-expect-error bun test re-export fix: https://github.com/oven-sh/bun/issues/5400
-const testFunc = (meta: ImportMeta, func?: string) => (func ? Bun.jest(meta.path).test[func] : Bun.jest(meta.path).test)
-
-export const badTest = bunTest
-
-// export const test = (...args: TestArgs) => baseTest(args, bunTest.test)
-export const test = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta))
-// test.skip = (...args: TestArgs) => baseTest(args, bunTest.test.skip)
-test.skip = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skip'))
-// test.todo = (...args: TestArgs) => baseTest(args, bunTest.test.todo)
-test.todo = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'todo'))
-// test.only = (...args: TestArgs) => baseTest(args, bunTest.test.only)
-test.only = (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'only'))
-// test.if = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.if(cond)))
-test.if = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'if')(cond))
-// test.skipIf = (cond: boolean) => ((...args: TestArgs) => baseTest(args, bunTest.test.skipIf(cond)))
-test.skipIf = (cond: boolean) => (meta: ImportMeta, ...args: TestArgs) => baseTest(args, testFunc(meta, 'skipIf')(cond))
+export const test = Object.assign(createTest(bunTest.test), {
+  skip: createTest(bunTest.test.skip),
+  todo: createTest(bunTest.test.todo),
+  if: (cond: boolean) => createTest(bunTest.test.if(cond)),
+  skipIf: (cond: boolean) => createTest(bunTest.test.skipIf(cond)),
+  ...(process.env.CI ? {} : { only: createTest(bunTest.test.only) }),
+})
 
 export const it = test

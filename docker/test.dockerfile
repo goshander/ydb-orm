@@ -1,4 +1,4 @@
-FROM oven/bun:1.0
+FROM oven/bun:1.3.14
 
 RUN mkdir -p /home/bun/app && chown -R bun:bun /home/bun/app
 
