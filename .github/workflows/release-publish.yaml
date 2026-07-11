@@ -149,6 +149,7 @@ jobs:
           YDB_ENDPOINT: grpc://localhost:2136
           YDB_DATABASE: /local
       - run: npm run build --if-present
+      - run: npm install --global npm@latest
       - run: npm publish --access public --provenance
       - if: always()
         run: npm run docker:db-down
