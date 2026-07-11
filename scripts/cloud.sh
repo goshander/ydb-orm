@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # exit setup
-set -eox pipefail
+set -eo pipefail
 # [-e] - immediately exit if any command has a non-zero exit status
 # [-x] - all executed commands are printed to the terminal [not secure]
 # [-o pipefail] - if any command in a pipeline fails, that return code will be used as the return code of the whole pipeline
@@ -52,6 +52,9 @@ if [ "${YC_PROFILE_EXISTS}" != "true" ] && [ ! -z "${YC_PROFILE_NAME}" ]; then
   fi
 
   echo "ok: config yc profile [${YC_PROFILE_NAME}] success"
+else
+  YC_CLOUD_ID=$(yc --profile "${YC_PROFILE_NAME}" config get cloud-id)
+  YC_FOLDER_ID=$(yc --profile "${YC_PROFILE_NAME}" config get folder-id)
 fi
 
 IAM_SERVICE_ACCOUNT_NAME="ydb-orm-test"
@@ -60,11 +63,11 @@ echo "service account id: ${IAM_SERVICE_ACCOUNT_ID}"
 echo ""
 IAM_TOKEN=$(yc --profile "${YC_PROFILE_NAME}" iam create-token --impersonate-service-account-id "${IAM_SERVICE_ACCOUNT_ID}")
 
+export YC_IAM_TOKEN="${IAM_TOKEN}"
 export YDB_TOKEN="${IAM_TOKEN}"
 
 YDB_DATABASE="ydb-orm-test"
-YDB_ENDPOINT=$(yc ydb database list --profile "${YC_PROFILE_NAME}" --format json |
-  jq -r '.[] | select(.name == "'"${YDB_DATABASE}"'") | .endpoint')
+YDB_ENDPOINT=$(yc --cloud-id "${YC_CLOUD_ID}" --folder-id "${YC_FOLDER_ID}" ydb database get --name "${YDB_DATABASE}" --format json | jq -r '.endpoint')
 export YDB_CONNECTION_STRING="${YDB_ENDPOINT}"
 
 echo "run tests..."
