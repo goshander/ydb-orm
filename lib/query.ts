@@ -53,7 +53,7 @@ export const assertSchemaField = (
 ) => {
   assertIdentifier(field, 'field')
 
-  if (!schemaFields[field]) {
+  if (!Object.hasOwn(schemaFields, field)) {
     throw new Error(`ydb: unknown schema field [${field}]`)
   }
 }

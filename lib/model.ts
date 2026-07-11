@@ -410,7 +410,9 @@ export class YdbModel<TFields extends object = Record<string, PrimitiveType>>
   async update(fields: Partial<TFields>) {
     const schema = this.model.fields
     const fieldNames = Object.keys(fields)
-    fieldNames.forEach((field) => assertSchemaField(schema, field))
+    fieldNames.forEach((field) => {
+      assertSchemaField(schema, field)
+    })
     fieldNames.forEach((field) => {
       this[field] = fields[field as keyof TFields]
     })

@@ -57,8 +57,9 @@ export interface User extends UserFields {}
 - Validate every SQL identifier derived from a model or query option.
 - Add tests for every public ORM method, query operator, retry policy, or schema
   behavior change.
-- Keep package source at 100% line/function coverage. The coverage command must
-  fail when `index.ts` or any `lib/*.ts` file drops below that threshold.
+- Keep coverage meaningful for package source and add regression tests for
+  changed behavior. `bun run test:coverage` currently produces text and LCOV
+  reports but does not enforce a minimum threshold.
 - Do not edit generated `dist` files manually.
 - Never enable shell tracing around credentials or tokens.
 - Never interpolate repository secrets directly into generated shell source.
@@ -164,7 +165,8 @@ Other schema/YQL errors fail immediately.
 - `lib/model.ts`: active-record base class and model CRUD/query methods.
 - `lib/query.ts`: schema-aware SQL fragments, where operators, attributes,
   ordering, and pagination validation.
-- `lib/where.ts`: public where-builder alias.
+- `lib/where.ts`: where-builder alias tested directly but not exported from the
+  package root.
 - `lib/sync.ts`: table creation and schema synchronization for columns, indexes,
   rename behavior, and strict mode.
 - `lib/api.ts`: low-level Table and Monitoring API wrappers.
@@ -212,9 +214,9 @@ CI is intentionally split into independent workflow files/jobs:
 - host and Docker Node/package smoke tests.
 
 Every workflow that starts YDB must clean it up in an `always()` step.
-All workflows use `actions/checkout@v6`. Bun test failures are emitted as native
-GitHub annotations, while test and coverage totals are written to native job
-summaries.
+All workflows use `actions/checkout@v6`. Test and coverage workflows currently
+rely on their command output and exit status; they do not publish separate job
+summaries or PR comments.
 
 ## Sequelize-Inspired Feature Status
 
