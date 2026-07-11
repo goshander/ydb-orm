@@ -16,6 +16,7 @@ jobs:
         run: |
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$HOME/.local/yc" -n
           echo "$HOME/.local/yc" >> "$GITHUB_PATH"
+      - run: yc version
       - run: |
           jq -r '.' > ./sa-key.json << EOF
           ${{ secrets.YC_SA_KEY }}
