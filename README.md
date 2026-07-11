@@ -173,12 +173,16 @@ Run the same checks as CI before opening a PR:
 npm run lint
 npm run typecheck
 npm run typecheck:test
+bun run test:unit
 bun run test
 npm run test-nodejs
 bun run test:coverage
 ```
 
 `bun run test:coverage` writes an lcov report to `coverage/` and enforces 100% line/function coverage for package source files (`index.ts` and `lib/**/*.ts`).
+
+Unit tests use mocked Driver/API boundaries and run without YDB. The remaining
+test suites are integration tests and require a running database.
 
 ---
 

@@ -1,3 +1,4 @@
+import bunTest from 'bun:test'
 import { generateKeyPairSync } from 'node:crypto'
 import { create } from '@bufbuild/protobuf'
 import { anyPack } from '@bufbuild/protobuf/wkt'
@@ -23,12 +24,30 @@ import {
 import { sync } from '../lib/sync.js'
 import { YdbDataType } from '../lib/type.js'
 import { where } from '../lib/where.js'
-import { type TestOptions, test } from '../test.js'
+import type { TestBase, TestOptions } from '../test.js'
 
 const options = {
   models: {},
   sync: false,
 } satisfies TestOptions
+
+type UnitTestCallback = (t: TestBase) => void | Promise<void>
+
+const test = (
+  name: string,
+  _options: TestOptions,
+  callback: UnitTestCallback,
+) =>
+  bunTest.test(name, () =>
+    callback({
+      expect: bunTest.expect,
+      setSystemTime: bunTest.setSystemTime,
+      mock: bunTest.mock,
+      spyOn: bunTest.spyOn,
+      init: bunTest.beforeAll,
+      teardown: bunTest.afterAll,
+    }),
+  )
 
 const expectThrow = (callback: () => unknown) => {
   try {
@@ -682,6 +701,9 @@ test('unit - model drop and db getters', options, async (t) => {
   })
   t.expect(Ydb.db).toBe(db)
   t.expect((db as unknown as { timeout: number }).timeout).toBe(1234)
+  ;(
+    db as unknown as { _driver: { ready: () => Promise<void> } }
+  )._driver.ready = async () => {}
   await db.connect()
 
   class DropModel extends YdbModel {
